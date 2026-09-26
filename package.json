@@ -1,0 +1,58 @@
+{
+  "name": "@mychiefmind/ai-maestro-web-ui",
+  "version": "0.1.0",
+  "description": "Local multi-project web UI for @mychiefmind/ai-maestro capsules.",
+  "keywords": [
+    "ai-maestro",
+    "dashboard",
+    "kanban",
+    "agents"
+  ],
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/my-chiefmind/ai-maestro-web-ui.git"
+  },
+  "bugs": {
+    "url": "https://github.com/my-chiefmind/ai-maestro-web-ui/issues"
+  },
+  "homepage": "https://github.com/my-chiefmind/ai-maestro-web-ui#readme",
+  "bin": {
+    "ai-maestro-web-ui": "bin/ai-maestro-web-ui.mjs"
+  },
+  "files": [
+    "server",
+    "bin",
+    "ui/dist"
+  ],
+  "exports": {
+    ".": "./server/index.mjs"
+  },
+  "scripts": {
+    "build": "vite build --config ui/vite.config.mjs",
+    "dev": "vite --config ui/vite.config.mjs",
+    "start": "node bin/ai-maestro-web-ui.mjs",
+    "prepack": "npm run build"
+  },
+  "peerDependencies": {
+    "@mychiefmind/ai-maestro": "^0.6.6"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@mychiefmind/ai-maestro": "0.6.6",
+    "axe-core": "^4.13.0",
+    "playwright": "^1.63.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-markdown": "^10.1.0",
+    "react-test-renderer": "^19.3.0",
+    "remark-gfm": "^4.0.1",
+    "vite": "^7.3.6"
+  }
+}

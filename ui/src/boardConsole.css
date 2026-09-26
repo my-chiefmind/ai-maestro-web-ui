@@ -1,0 +1,42 @@
+/* Board console (T-014): filters, focus stat cards, list view, drag targets. */
+.board-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--hair); background: var(--panel); }
+.board-filters select { background: var(--panel-2); border: 1px solid var(--hair); border-radius: var(--r-sm); padding: 7px 10px; color: var(--ink); max-width: 100%; }
+.board-filters select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.board-view-toggle { display: inline-flex; gap: 4px; margin-left: auto; }
+.board-view-toggle .btn[aria-pressed="true"] { background: var(--accent-soft); color: var(--ink); border-color: var(--accent); }
+
+.board-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 12px 16px 0; }
+.stat-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 12px;
+  background: var(--panel-2); color: var(--ink); border: 1px solid var(--hair); border-radius: var(--r-md);
+  font: inherit; text-align: left; cursor: pointer; transition: border-color var(--dur-fast), background var(--dur-fast);
+}
+.stat-card:hover { border-color: var(--line); }
+.stat-card:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.stat-card[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.stat-card .stat-value { font: 600 22px var(--display, var(--sans)); }
+.stat-card .stat-label { font-size: 12px; color: var(--ink-2); }
+
+.board-list { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.board-list .epic-group h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 14px; color: var(--ink); }
+.board-list .epic-group .count { font: 11px var(--mono); color: var(--ink-3); }
+.board-list ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.board-row {
+  display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px; align-items: center; width: 100%;
+  padding: 8px 12px; background: var(--panel-2); color: var(--ink); border: 1px solid var(--hair); border-radius: var(--r-sm);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.board-row:hover { border-color: var(--line); }
+.board-row:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.board-row .row-status { font: 11px var(--mono); color: var(--ink-2); }
+
+.column.drop-target { outline: 2px dashed var(--accent); outline-offset: -4px; }
+.cards li[draggable="true"] { cursor: grab; }
+
+@media (max-width: 600px) {
+  .board-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .board-filters select { flex: 1 1 140px; }
+  .board-view-toggle { margin-left: 0; }
+  .board-row { grid-template-columns: auto 1fr; }
+  .board-row .row-status, .board-row .pri { grid-column: auto; }
+}
