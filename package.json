@@ -12,12 +12,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/my-chiefmind/ai-maestro-wui.git"
+    "url": "git+https://github.com/my-chiefmind/ai-maestro-web-ui.git"
   },
   "bugs": {
-    "url": "https://github.com/my-chiefmind/ai-maestro-wui/issues"
+    "url": "https://github.com/my-chiefmind/ai-maestro-web-ui/issues"
   },
-  "homepage": "https://github.com/my-chiefmind/ai-maestro-wui#readme",
+  "homepage": "https://github.com/my-chiefmind/ai-maestro-web-ui#readme",
   "bin": {
     "ai-maestro-web-ui": "bin/ai-maestro-web-ui.mjs"
   },
