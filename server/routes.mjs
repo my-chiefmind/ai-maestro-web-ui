@@ -12,6 +12,7 @@ import {
 } from "./maestro.mjs";
 import { activeBoards, addBoard, assertBoardUsable, removeBoard, setBoardStatus } from "./config.mjs";
 import { suggestDirs } from "./dirSuggest.mjs";
+import { latestVersions, runUpdate, updateStatus } from "./selfUpdate.mjs";
 import { docsDir, listDocs, listReports, listRoster, readDoc, readReport, reportsDir, sendAsset } from "./capsuleFiles.mjs";
 
 const TICKET_CREATE_FIELDS = [
@@ -23,6 +24,7 @@ const TICKET_PATCH_FIELDS = [
   "depends_on", "traces_to", "human_gate", "testCmd", "epicId",
   "dev_runtime", "dev_model", "reviewer_runtime", "reviewer_model",
 ];
+let updateRunning = false;
 const EPIC_CREATE_FIELDS = ["id", "name", "desc", "traces_to", "initiativeId"];
 const EPIC_PATCH_FIELDS = ["name", "desc", "traces_to", "initiativeId"];
 const PLAN_OPERATIONS = new Map([
@@ -41,7 +43,7 @@ const PLAN_OPERATIONS = new Map([
 /**
  * @typedef {import("./config.mjs").Config} Config
  * @typedef {import("./config.mjs").Board} Board
- * @typedef {{req: import("node:http").IncomingMessage, res: import("node:http").ServerResponse, params: string[], config: Config, generated?: boolean}} Ctx
+ * @typedef {{req: import("node:http").IncomingMessage, res: import("node:http").ServerResponse, params: string[], config: Config, generated?: boolean, selfUpdate?: any}} Ctx
  */
 
 /** @param {Config} config @param {string} id */
@@ -435,6 +437,29 @@ const ROUTES = [
       port: config.port, allowedHosts: config.allowedHosts,
       boards: config.boards.map((b) => ({ id: b.id, key: b.key, name: b.name, label: b.label, path: b.path, status: b.status })),
     });
+  }],
+
+  ["GET", /^\/api\/updates$/, async ({ req, res, config, selfUpdate = {} }) => {
+    const force = new URL(req.url ?? "/", "http://localhost").searchParams.get("force") === "1";
+    const latest = await latestVersions({ cacheFile: selfUpdate.cacheFile, fetchImpl: selfUpdate.fetchImpl, force });
+    send(res, 200, updateStatus(config.boards, latest));
+  }],
+
+  // Streams NDJSON events ({type: project|step|out|err|exit|done}) while the steps run. POST +
+  // JSON content type keeps the CSRF guard; the host guard already limits it to loopback.
+  ["POST", /^\/api\/updates\/run$/, async ({ req, res, config, selfUpdate = {} }) => {
+    onlyKeys(await readJson(req), [], "body");
+    if (config.readonly) throw new HttpError(403, { error: "Updates are disabled in read-only import mode." });
+    if (updateRunning) throw new HttpError(409, { error: "An update is already running." });
+    updateRunning = true;
+    try {
+      res.writeHead(200, { "cache-control": "no-store", "x-content-type-options": "nosniff", "content-type": "application/x-ndjson; charset=utf-8" });
+      const emit = (ev) => { if (!res.writableEnded) res.write(`${JSON.stringify(ev)}\n`); };
+      const result = await runUpdate(config.boards, emit, { spawn: selfUpdate.spawn });
+      const restart = result.ok && typeof selfUpdate.onRestart === "function";
+      emit({ type: "done", ...result, restarting: restart });
+      res.end(() => { if (restart) setTimeout(() => selfUpdate.onRestart(), 50); });
+    } finally { updateRunning = false; }
   }],
 
   ["POST", /^\/api\/fs\/dirs$/, async ({ req, res }) => {

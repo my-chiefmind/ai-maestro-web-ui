@@ -1,5 +1,11 @@
 /** The rail (dock): every configured board with its counts; a broken board shows its error in place. */
-import { total } from "./logic.js";
+import { useEffect, useState } from "react";
+import { formatTokens, total } from "./logic.js";
+import { dailyTokens, fetchProjectTokens, rankTicketsByTokens, tokenWindows } from "./overviewTokensApi.js";
+import { TokenTrend } from "./TokenTrend.jsx";
+import { TicketTokenList } from "./TicketTokenList.jsx";
+import { usageUnavailable } from "./shell.js";
+import "./overviewTokens.css";
 
 const Icon = {
   refresh: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9" /><path d="M13.5 2.5v3h-3" /></svg>,
@@ -11,6 +17,43 @@ const Icon = {
   list: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M5.5 4h8M5.5 8h8M5.5 12h8" /><circle cx="2.5" cy="4" r="0.6" /><circle cx="2.5" cy="8" r="0.6" /><circle cx="2.5" cy="12" r="0.6" /></svg>,
   dark: <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M13.5 9.5A5.5 5.5 0 0 1 6.5 2.5a5.5 5.5 0 1 0 7 7z" /></svg>,
 };
+
+/**
+ * T-017: a project card's token usage — 7d / 30d / all-time totals and a 14-day trend; when the
+ * project is the open view, its tickets ranked by tokens. Token counts only.
+ * @param {{ id: string, name: string, active: boolean, load?: (id: string) => Promise<any> }} props
+ */
+export function ProjectTokens({ id, name, active, load = fetchProjectTokens }) {
+  const [state, setState] = useState(/** @type {{report?: any, error?: string} | null} */ (null));
+  useEffect(() => {
+    let live = true;
+    setState(null);
+    load(id).then((env) => { if (live) setState({ report: env?.report ?? null }); },
+      (e) => { if (live) setState({ error: usageUnavailable(e) ? "Token usage unavailable" : "Token usage could not be read" }); });
+    return () => { live = false; };
+  }, [id, load]);
+
+  let body;
+  if (!state) body = <p className="ot-state" role="status">Loading tokens…</p>;
+  else if (state.error || !state.report) body = <p className="ot-state is-error">{state.error || "Token usage unavailable"}</p>;
+  else {
+    const w = tokenWindows(state.report);
+    body = <>
+      <dl className="ot-windows">
+        <div><dt>7d</dt><dd>{formatTokens(w.d7)}</dd></div>
+        <div><dt>30d</dt><dd>{formatTokens(w.d30)}</dd></div>
+        <div><dt>All</dt><dd>{formatTokens(w.all)}</dd></div>
+      </dl>
+      {w.all === 0 ? <p className="ot-state">No tokens recorded yet.</p>
+        : <TokenTrend days={dailyTokens(state.report, 14)} label={`${name} tokens per day, last 14 days`} />}
+      {active && w.all > 0 && <>
+        <p className="ot-tickets-title" aria-hidden="true">Top tickets by tokens</p>
+        <TicketTokenList tickets={rankTicketsByTokens(state.report)} label={`${name} tickets ranked by tokens`} />
+      </>}
+    </>;
+  }
+  return <section className="ot-card" aria-label={`${name} token usage`}>{body}</section>;
+}
 
 /**
  * @param {{rail: any[] | null, error: string | null, active: string | null, operationsActive?: boolean, mode?: string,
@@ -64,6 +107,7 @@ export function Rail({ rail, error, active, operationsActive, mode, theme = "sys
                 </span>
               </button>
             )}
+            {!b.error && <ProjectTokens id={b.id} name={b.name} active={active === b.id} />}
           </li>
         ))}
       </ul>

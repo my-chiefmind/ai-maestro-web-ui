@@ -26,6 +26,7 @@ import { TicketTokensPage } from "./TicketTokensPage.jsx";
 import { HelpPage } from "./HelpPage.jsx";
 import { ProjectsPage } from "./ProjectsPage.jsx";
 import { WelcomeModal } from "./WelcomeModal.jsx";
+import { UpdateBanner } from "./UpdateBanner.jsx";
 import { escapeBelongsToControl } from "./logic.js";
 import { planRefresh, startBoardPoller } from "./autoRefresh.js";
 import { applyTheme, nextTheme, readTheme } from "./theme.js";
@@ -298,6 +299,7 @@ export function App() {
             ))}
           </nav>
         </header>
+        <UpdateBanner />
         {shell.tab === "board" && panels.length > 0 && (
           <nav className="taskbar" aria-label="Open windows">
             {panels.map((w) => (

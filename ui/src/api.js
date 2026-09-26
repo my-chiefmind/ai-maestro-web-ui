@@ -54,6 +54,8 @@ export const ALLOWED = Object.freeze([
   ["PATCH", new RegExp(`^/config/boards/${SEG}$`)],
   ["DELETE", new RegExp(`^/config/boards/${SEG}$`)],
   ["POST", /^\/fs\/dirs$/],
+  ["GET", /^\/updates$/],
+  ["POST", /^\/updates\/run$/],
 ].map(([m, re]) => Object.freeze([m, re])));
 
 /** True if a path segment decodes (repeatedly, until stable) to "." or "..". @param {string} seg */
@@ -109,6 +111,37 @@ export async function call(path, opts = {}) {
   const body = type.includes("application/json") ? await res.json().catch(() => null) : await res.text();
   if (!res.ok) throw new ApiError(res.status, typeof body === "string" ? { error: body } : body);
   return body;
+}
+
+/**
+ * Like `call`, but for an NDJSON response: each line is parsed and handed to `onEvent` as it
+ * arrives (used for the self-update's live output).
+ * @param {string} path @param {RequestInit & {json?: any}} opts @param {(ev: any) => void} onEvent
+ */
+export async function callStream(path, opts, onEvent) {
+  const { json, ...init } = opts;
+  assertAllowed(init.method || "GET", path);
+  if (json !== undefined) {
+    init.body = JSON.stringify(json);
+    init.headers = { "content-type": "application/json", ...(init.headers || {}) };
+  }
+  const res = await fetch(`/api${path}`, init);
+  if (!res.ok || !res.body) {
+    const body = await res.json().catch(() => null);
+    throw new ApiError(res.status, body);
+  }
+  const reader = res.body.getReader(); const decoder = new TextDecoder();
+  let buf = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (value) buf += decoder.decode(value, { stream: true });
+    let nl;
+    while ((nl = buf.indexOf("\n")) !== -1) {
+      const line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
+      if (line) onEvent(JSON.parse(line));
+    }
+    if (done) break;
+  }
 }
 
 const enc = encodeURIComponent;

@@ -22,13 +22,14 @@ import { serveStatic, DEFAULT_DIST } from "./static.mjs";
 export { loadConfig };
 
 /**
- * @param {{config?: import("./config.mjs").Config, configPath?: string | null, cwd?: string, log?: (msg: string) => void, generated?: boolean, uiDist?: string}} [opts]
+ * @param {{config?: import("./config.mjs").Config, configPath?: string | null, cwd?: string, log?: (msg: string) => void, generated?: boolean, uiDist?: string, selfUpdate?: {onRestart?: () => void, cacheFile?: string, fetchImpl?: typeof fetch, spawn?: any}}} [opts]
  * @returns {import("node:http").Server}
  */
 export function createServer(opts = {}) {
   const config = opts.config ?? loadConfig(opts.configPath ?? null, opts.cwd);
   const generated = opts.generated === true;
   const uiDist = opts.uiDist ?? DEFAULT_DIST;
+  const selfUpdate = opts.selfUpdate ?? {};
   const log = opts.log ?? ((m) => process.stderr.write(`[ai-maestro-web-ui] ${m}\n`));
 
   // requireHostHeader off: node would answer a Host-less request with its own 400; the guard
@@ -50,7 +51,7 @@ export function createServer(opts = {}) {
       }
       refreshConfig(config);
       const { handler, params } = match(method, pathname);
-      await handler({ req, res, params, config, generated });
+      await handler({ req, res, params, config, generated, selfUpdate });
     } catch (e) {
       const { status, body, log: msg } = toHttp(e);
       if (msg) log(`${req.method} ${req.url}: ${msg}`);

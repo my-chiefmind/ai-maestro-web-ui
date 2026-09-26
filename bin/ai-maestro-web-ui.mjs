@@ -77,11 +77,23 @@ try {
   const allowHost = takeFlag("allow-host"); const noOpen = takeSwitch("no-open"); finishArgs();
   const config = importPath ? loadImportedConfig(importPath) : loadConfig(null);
   if (allowHost) config.allowedHosts.push(allowHost);
-  const server = createServer({ config, generated: config.mode === "import" });
+  // After a successful self-update: free the port, re-exec this same command (now resolving the
+  // freshly installed package), and exit. The page polls /api/config until the new process answers.
+  const restart = () => {
+    server.closeAllConnections?.();
+    server.close(() => {
+      spawn(process.execPath, [...process.execArgv, ...process.argv.slice(1).filter((a) => a !== "--no-open"), "--no-open"],
+        { cwd: process.cwd(), stdio: "inherit", env: { ...process.env, AI_MAESTRO_WEB_UI_RESTART_PORT: String(port) }, detached: true }).unref();
+      process.exit(0);
+    });
+  };
+  const server = createServer({ config, generated: config.mode === "import", selfUpdate: { onRestart: restart } });
   const LAST_PORT = DEFAULT_PORT + 20;
-  let port = DEFAULT_PORT;
+  // A self-update restart keeps the port the page is polling.
+  const restartPort = Number(process.env.AI_MAESTRO_WEB_UI_RESTART_PORT);
+  let port = Number.isInteger(restartPort) && restartPort > 0 ? restartPort : DEFAULT_PORT;
   server.on("error", (error) => {
-    if (error.code === "EADDRINUSE" && port < LAST_PORT) { port += 1; server.listen(port, "127.0.0.1"); return; }
+    if (error.code === "EADDRINUSE" && port < Math.max(LAST_PORT, restartPort || 0)) { port += 1; server.listen(port, "127.0.0.1"); return; }
     process.stderr.write(`ai-maestro-web-ui: cannot bind 127.0.0.1:${port}: ${error.message}\n`);
     process.exit(1);
   });
