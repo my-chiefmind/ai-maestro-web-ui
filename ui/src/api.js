@@ -55,6 +55,7 @@ export const ALLOWED = Object.freeze([
   ["DELETE", new RegExp(`^/config/boards/${SEG}$`)],
   ["POST", /^\/fs\/dirs$/],
   ["GET", /^\/updates$/],
+  ["POST", /^\/updates\/check$/],
   ["POST", /^\/updates\/run$/],
 ].map(([m, re]) => Object.freeze([m, re])));
 

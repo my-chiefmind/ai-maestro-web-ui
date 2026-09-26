@@ -3,6 +3,18 @@ import { call, callStream } from "./api.js";
 /** Update check (cached server-side for a day). */
 export const fetchUpdates = () => call("/updates");
 
+/** Manual "Check for updates": asks npm now, ignoring the daily cache. */
+export const checkUpdates = () => call("/updates/check", { method: "POST", json: {} });
+
+/** "Up to date" line for a manual check that found nothing newer. */
+export function upToDateSummary(status) {
+  if (!status || status.available) return null;
+  if (status.error) return `Could not check for updates: ${status.error}`;
+  const kit = status.projects?.find((p) => p.kit)?.kit;
+  const parts = [status.running?.ui && `web UI ${status.running.ui}`, kit && `kit ${kit}`].filter(Boolean);
+  return `Everything is up to date${parts.length ? ` (${parts.join(", ")})` : ""}.`;
+}
+
 /** "Update available: kit X → Y, web UI A → B" from the server's status, or null when current. */
 export function updateSummary(status) {
   if (!status?.available) return null;

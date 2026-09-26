@@ -10,6 +10,36 @@ export function fetchProjectTokens(key) {
   return api.usage(key);
 }
 
+/**
+ * A tiny FIFO limiter: at most `max` tasks in flight; the rest wait their turn.
+ * @param {number} max
+ * @returns {<T>(task: () => Promise<T>) => Promise<T>}
+ */
+export function createLimiter(max) {
+  let running = 0;
+  /** @type {(() => void)[]} */ const queue = [];
+  const next = () => {
+    if (running >= max || !queue.length) return;
+    running++;
+    /** @type {() => void} */ (queue.shift())();
+  };
+  return (task) => new Promise((resolve, reject) => {
+    queue.push(() => {
+      Promise.resolve().then(task).then(resolve, reject).finally(() => { running--; next(); });
+    });
+    next();
+  });
+}
+
+/** Rail cards share one limiter so a large registry never fires every usage request at once. */
+export const TOKEN_FETCH_LIMIT = 4;
+const limit = createLimiter(TOKEN_FETCH_LIMIT);
+/** `fetchProjectTokens`, queued behind the shared in-flight cap. @param {string} key */
+export const queuedProjectTokens = (key) => limit(() => fetchProjectTokens(key));
+
+/** Milliseconds until the next UTC midnight. @param {number} [now] */
+export const msToNextUtcDay = (now = Date.now()) => DAY_MS - (now % DAY_MS);
+
 const DAY_MS = 86_400_000;
 /** UTC calendar day (YYYY-MM-DD), matching the usage report's `date` breakdown keys. @param {number} ms */
 export const utcDay = (ms) => new Date(ms).toISOString().slice(0, 10);

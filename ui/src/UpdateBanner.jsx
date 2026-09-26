@@ -1,21 +1,41 @@
 import { useEffect, useRef, useState } from "react";
-import { fetchUpdates, runUpdates, updateSummary, waitForServer } from "./updateApi.js";
+import { checkUpdates, runUpdates, updateSummary, upToDateSummary, waitForServer } from "./updateApi.js";
 
 /**
- * Self-update banner: shows when a newer kit / web UI is published, lists the projects that
- * are behind, and runs the server-side update with its output streamed live.
+ * Self-update banner, driven by the rail's "Check for updates" button: each click (a new
+ * `checkRequest` value) asks npm now; the banner then says everything is current, or lists the
+ * projects that are behind and runs the server-side update with its output streamed live.
+ * @param {{checkRequest?: number}} props
  */
-export function UpdateBanner() {
+export function UpdateBanner({ checkRequest = 0 }) {
   const [status, setStatus] = useState(/** @type {any} */ (null));
-  const [phase, setPhase] = useState("idle"); // idle | running | restarting | failed
+  const [phase, setPhase] = useState("idle"); // idle | checking | running | restarting | failed
   const [log, setLog] = useState("");
   const [error, setError] = useState("");
   const logRef = useRef(/** @type {HTMLPreElement | null} */ (null));
 
-  useEffect(() => { fetchUpdates().then(setStatus).catch(() => {}); }, []);
+  useEffect(() => {
+    if (!checkRequest) return;
+    let live = true;
+    setPhase("checking"); setError(""); setLog("");
+    checkUpdates()
+      .then((s) => { if (live) { setStatus(s); setPhase("idle"); } })
+      .catch((e) => { if (live) { setStatus(null); setPhase("failed"); setError(String(/** @type {Error} */ (e).message)); } });
+    return () => { live = false; };
+  }, [checkRequest]);
   useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, [log]);
 
   const summary = updateSummary(status);
+  const current = phase === "idle" ? upToDateSummary(status) : null;
+  if (phase === "checking") return <div className="notice update-banner notice-warn" role="status"><span>Checking for updates…</span></div>;
+  if (current) {
+    return (
+      <div className={`notice update-banner ${status?.error ? "notice-error" : ""}`} role="status">
+        <span>{current}</span>{" "}
+        <button type="button" className="btn" onClick={() => setStatus(null)}>Dismiss</button>
+      </div>
+    );
+  }
   if (!summary && phase === "idle") return null;
   const behind = (status?.projects ?? []).filter((p) => status.behind?.includes(p.key));
 
@@ -52,8 +72,8 @@ export function UpdateBanner() {
       {phase === "restarting" && <span>Restarting the web UI…</span>}
       {phase === "failed" && (
         <>
-          <span className="update-error">Update failed: {error}</span>{" "}
-          <button type="button" className="btn" onClick={start}>Retry</button>
+          <span className="update-error">{summary ? "Update failed" : "Update check failed"}: {error}</span>{" "}
+          {summary && <button type="button" className="btn" onClick={start}>Retry</button>}
         </>
       )}
       {log && <pre ref={logRef} className="update-log" aria-label="Update output">{log}</pre>}

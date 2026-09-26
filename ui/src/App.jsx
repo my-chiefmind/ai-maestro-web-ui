@@ -51,6 +51,7 @@ export function App() {
   const [shell, setShell] = useState(initialShell);
   const [theme, setTheme] = useState(readTheme);
   useEffect(() => { applyTheme(theme); }, [theme]);
+  const [updateCheck, setUpdateCheck] = useState(0);
   const [railCollapsed, setRailCollapsed] = useState(() => {
     try { return globalThis.localStorage?.getItem("mwu-rail") === "collapsed"; } catch { return false; }
   });
@@ -284,6 +285,7 @@ export function App() {
         onAdd={() => open({ type: "add" })} onRefresh={loadRail} mode={cfg?.mode}
         projectsActive={shell.tab === "projects"} onProjects={() => setShell({ scope: ALL, tab: "projects" })}
         theme={theme} onTheme={() => setTheme((t) => nextTheme(t))}
+        onCheckUpdates={cfg?.readonly ? undefined : () => setUpdateCheck((n) => n + 1)}
         collapsed={railCollapsed} onCollapse={() => setRailCollapsed((c) => !c)} />
       <div className="workspace">
         <h1 className="sr-only">Maestro boards</h1>
@@ -299,7 +301,7 @@ export function App() {
             ))}
           </nav>
         </header>
-        <UpdateBanner />
+        <UpdateBanner checkRequest={updateCheck} />
         {shell.tab === "board" && panels.length > 0 && (
           <nav className="taskbar" aria-label="Open windows">
             {panels.map((w) => (

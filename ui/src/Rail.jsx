@@ -1,7 +1,7 @@
 /** The rail (dock): every configured board with its counts; a broken board shows its error in place. */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatTokens, total } from "./logic.js";
-import { dailyTokens, fetchProjectTokens, rankTicketsByTokens, tokenWindows } from "./overviewTokensApi.js";
+import { dailyTokens, msToNextUtcDay, queuedProjectTokens, rankTicketsByTokens, tokenWindows, utcDay } from "./overviewTokensApi.js";
 import { TokenTrend } from "./TokenTrend.jsx";
 import { TicketTokenList } from "./TicketTokenList.jsx";
 import { usageUnavailable } from "./shell.js";
@@ -21,23 +21,30 @@ const Icon = {
 /**
  * T-017: a project card's token usage — 7d / 30d / all-time totals and a 14-day trend; when the
  * project is the open view, its tickets ranked by tokens. Token counts only.
- * @param {{ id: string, name: string, active: boolean, load?: (id: string) => Promise<any> }} props
+ * `version` changes (rail refresh, UTC day rollover) reload the card while the previous values
+ * stay visible; `enabled=false` (desktop rail collapsed) defers fetching until it is shown.
+ * @param {{ id: string, name: string, active: boolean, version?: string | number, enabled?: boolean,
+ *   load?: (id: string) => Promise<any> }} props
  */
-export function ProjectTokens({ id, name, active, load = fetchProjectTokens }) {
-  const [state, setState] = useState(/** @type {{report?: any, error?: string} | null} */ (null));
+export function ProjectTokens({ id, name, active, version = 0, enabled = true, load = queuedProjectTokens }) {
+  const [state, setState] = useState(/** @type {{id: string, report?: any, error?: string} | null} */ (null));
+  const loaded = useRef(/** @type {string | null} */ (null));
+  const want = `${id}\u0000${version}`;
   useEffect(() => {
+    if (!enabled || loaded.current === want) return undefined;
     let live = true;
-    setState(null);
-    load(id).then((env) => { if (live) setState({ report: env?.report ?? null }); },
-      (e) => { if (live) setState({ error: usageUnavailable(e) ? "Token usage unavailable" : "Token usage could not be read" }); });
+    load(id).then((env) => { if (live) { loaded.current = want; setState({ id, report: env?.report ?? null }); } },
+      (e) => { if (live) { loaded.current = want; setState({ id, error: usageUnavailable(e) ? "Token usage unavailable" : "Token usage could not be read" }); } });
     return () => { live = false; };
-  }, [id, load]);
+  }, [id, want, enabled, load]);
+  // A different project never shows the previous project's numbers; a refresh of the same one does.
+  const shown = state && state.id === id ? state : null;
 
   let body;
-  if (!state) body = <p className="ot-state" role="status">Loading tokens…</p>;
-  else if (state.error || !state.report) body = <p className="ot-state is-error">{state.error || "Token usage unavailable"}</p>;
+  if (!shown) body = <p className="ot-state" role="status">Loading tokens…</p>;
+  else if (shown.error || !shown.report) body = <p className="ot-state is-error"><span className="ot-err-mark" aria-hidden="true">!</span>{shown.error || "Token usage unavailable"}</p>;
   else {
-    const w = tokenWindows(state.report);
+    const w = tokenWindows(shown.report);
     body = <>
       <dl className="ot-windows">
         <div><dt>7d</dt><dd>{formatTokens(w.d7)}</dd></div>
@@ -45,10 +52,10 @@ export function ProjectTokens({ id, name, active, load = fetchProjectTokens }) {
         <div><dt>All</dt><dd>{formatTokens(w.all)}</dd></div>
       </dl>
       {w.all === 0 ? <p className="ot-state">No tokens recorded yet.</p>
-        : <TokenTrend days={dailyTokens(state.report, 14)} label={`${name} tokens per day, last 14 days`} />}
+        : <TokenTrend days={dailyTokens(shown.report, 14)} label={`${name} tokens per day, last 14 days`} />}
       {active && w.all > 0 && <>
         <p className="ot-tickets-title" aria-hidden="true">Top tickets by tokens</p>
-        <TicketTokenList tickets={rankTicketsByTokens(state.report)} label={`${name} tickets ranked by tokens`} />
+        <TicketTokenList tickets={rankTicketsByTokens(shown.report)} label={`${name} tickets ranked by tokens`} />
       </>}
     </>;
   }
@@ -61,7 +68,25 @@ export function ProjectTokens({ id, name, active, load = fetchProjectTokens }) {
  *   onOperations: () => void, onOpen: (id: string) => void, onAdd: () => void, onRefresh: () => void,
  *   onProjects?: () => void, projectsActive?: boolean}} props
  */
-export function Rail({ rail, error, active, operationsActive, mode, theme = "system", onTheme, collapsed = false, onCollapse, onOperations, onOpen, onAdd, onRefresh, onProjects, projectsActive = false }) {
+/** The current UTC day, re-rendering at each UTC midnight so rolling windows move forward. */
+function useUtcDay() {
+  const [day, setDay] = useState(() => utcDay(Date.now()));
+  useEffect(() => {
+    const t = setTimeout(() => setDay(utcDay(Date.now())), msToNextUtcDay() + 1000);
+    return () => clearTimeout(t);
+  }, [day]);
+  return day;
+}
+
+/** The desktop rail hides token cards when collapsed; the phone rail always shows them. */
+const desktopWidth = () => typeof window !== "undefined" && !!window.matchMedia?.("(min-width: 761px)").matches;
+
+export function Rail({ rail, error, active, operationsActive, mode, theme = "system", onTheme, collapsed = false, onCollapse, onOperations, onOpen, onAdd, onRefresh, onProjects, projectsActive = false, onCheckUpdates }) {
+  const [refreshes, setRefreshes] = useState(0);
+  const day = useUtcDay();
+  const tokensVersion = `${refreshes}:${day}`;
+  const tokensEnabled = !(collapsed && desktopWidth());
+  const refresh = () => { setRefreshes((n) => n + 1); onRefresh(); };
   return (
     <aside className={`rail ${collapsed ? "is-collapsed" : ""}`} aria-label="Projects">
       <div className="rail-head">
@@ -79,7 +104,7 @@ export function Rail({ rail, error, active, operationsActive, mode, theme = "sys
             {Icon[theme] ?? Icon.system}
           </button>
         )}
-        <button type="button" className="icon-btn" aria-label="Refresh boards" onClick={onRefresh}>{Icon.refresh}</button>
+        <button type="button" className="icon-btn" aria-label="Refresh boards" onClick={refresh}>{Icon.refresh}</button>
       </div>
       <button type="button" className={`rail-operations ${operationsActive ? "is-active" : ""}`} onClick={onOperations}
         aria-current={operationsActive ? "page" : undefined} title="All projects">{Icon.pulse} <span className="rail-label">All projects</span></button>
@@ -107,7 +132,7 @@ export function Rail({ rail, error, active, operationsActive, mode, theme = "sys
                 </span>
               </button>
             )}
-            {!b.error && <ProjectTokens id={b.id} name={b.name} active={active === b.id} />}
+            {!b.error && <ProjectTokens id={b.id} name={b.name} active={active === b.id} version={tokensVersion} enabled={tokensEnabled} />}
           </li>
         ))}
       </ul>
@@ -115,6 +140,10 @@ export function Rail({ rail, error, active, operationsActive, mode, theme = "sys
       {onProjects && (
         <button type="button" className={`rail-manage ${projectsActive ? "is-active" : ""}`} onClick={onProjects} title="Manage projects"
           aria-current={projectsActive ? "page" : undefined}>{Icon.list} <span className="rail-label">Manage projects</span></button>
+      )}
+      {onCheckUpdates && (
+        <button type="button" className="rail-manage" onClick={onCheckUpdates} title="Check for updates">
+          {Icon.refresh} <span className="rail-label">Check for updates</span></button>
       )}
     </aside>
   );

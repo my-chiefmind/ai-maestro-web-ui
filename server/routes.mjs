@@ -445,6 +445,13 @@ const ROUTES = [
     send(res, 200, updateStatus(config.boards, latest));
   }],
 
+  // "Check for updates" button: always asks npm, bypassing the daily cache.
+  ["POST", /^\/api\/updates\/check$/, async ({ req, res, config, selfUpdate = {} }) => {
+    onlyKeys(await readJson(req), [], "body");
+    const latest = await latestVersions({ cacheFile: selfUpdate.cacheFile, fetchImpl: selfUpdate.fetchImpl, force: true });
+    send(res, 200, updateStatus(config.boards, latest));
+  }],
+
   // Streams NDJSON events ({type: project|step|out|err|exit|done}) while the steps run. POST +
   // JSON content type keeps the CSRF guard; the host guard already limits it to loopback.
   ["POST", /^\/api\/updates\/run$/, async ({ req, res, config, selfUpdate = {} }) => {

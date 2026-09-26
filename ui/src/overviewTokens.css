@@ -9,7 +9,13 @@
 .ot-bar { fill: var(--accent-2); }
 .ot-baseline { stroke: var(--rail-muted); stroke-width: 1; }
 .ot-state { margin: 0; color: var(--rail-muted); font: 11px var(--mono); }
-.ot-state.is-error { color: var(--err); }
+/* The rail is dark in both themes, so the page's --err (tuned for light surfaces) fails contrast
+   here; --ot-err is >= 4.5:1 on --rail-bg in light (#0d1a2e) and dark (#040810). The "!" mark is
+   the non-colour cue. */
+.rail { --ot-err: #ffa3ad; }
+.ot-state.is-error { color: var(--ot-err); display: flex; gap: 6px; align-items: baseline; }
+.ot-err-mark { flex: none; display: inline-grid; place-items: center; width: 12px; height: 12px; border-radius: 50%;
+  border: 1px solid currentColor; font: 700 9px/1 var(--mono); }
 .ot-tickets { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 2px; }
 .ot-tickets li { display: flex; justify-content: space-between; gap: 6px; min-width: 0; }
 .ot-ticket { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--rail-ink); }
