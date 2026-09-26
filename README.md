@@ -1,4 +1,4 @@
-<p align="center"><img src="https://raw.githubusercontent.com/my-chiefmind/ai-maestro-web-ui/main/ui/public/logo.png" alt="Maestro" width="160" /></p>
+<p align="center"><img src="https://raw.githubusercontent.com/my-chiefmind/ai-maestro-wui/main/ui/public/logo.png" alt="Maestro" width="160" /></p>
 
 # Maestro dashboard
 
@@ -6,7 +6,7 @@
 [AI Maestro](https://www.npmjs.com/package/@mychiefmind/ai-maestro) projects. One command opens
 every project's board, plan, reports and token usage in your browser, side by side.
 
-![Board view of one project, dark theme](https://raw.githubusercontent.com/my-chiefmind/ai-maestro-web-ui/main/assets/board.png)
+![Board view of one project, dark theme](https://raw.githubusercontent.com/my-chiefmind/ai-maestro-wui/main/assets/board.png)
 
 ## What it is
 
@@ -72,13 +72,13 @@ npx ai-maestro-web-ui
 | **Roster** | The agents and skills each project uses. |
 | **Help** | Getting started, the planning prompt and every command, with copy buttons. |
 
-![All projects: one operations view across every registered project](https://raw.githubusercontent.com/my-chiefmind/ai-maestro-web-ui/main/assets/portfolio.png)
+![All projects: one operations view across every registered project](https://raw.githubusercontent.com/my-chiefmind/ai-maestro-wui/main/assets/portfolio.png)
 
-![Reports rendered in the light theme](https://raw.githubusercontent.com/my-chiefmind/ai-maestro-web-ui/main/assets/reports.png)
+![Reports rendered in the light theme](https://raw.githubusercontent.com/my-chiefmind/ai-maestro-wui/main/assets/reports.png)
 
-![Help tab: getting started and command reference](https://raw.githubusercontent.com/my-chiefmind/ai-maestro-web-ui/main/assets/help.png)
+![Help tab: getting started and command reference](https://raw.githubusercontent.com/my-chiefmind/ai-maestro-wui/main/assets/help.png)
 
-<p align="center"><img src="https://raw.githubusercontent.com/my-chiefmind/ai-maestro-web-ui/main/assets/mobile.png" alt="Board on a phone" width="260" /></p>
+<p align="center"><img src="https://raw.githubusercontent.com/my-chiefmind/ai-maestro-wui/main/assets/mobile.png" alt="Board on a phone" width="260" /></p>
 
 Light and dark themes follow your system; switch with the moon icon. The left menu collapses to
 icons, and on a phone it becomes a strip across the top.
