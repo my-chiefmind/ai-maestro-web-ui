@@ -105,8 +105,9 @@ npm install --save-dev @mychiefmind/ai-maestro @mychiefmind/ai-maestro-web-ui
 npx ai-maestro-web-ui
 ```
 
-With no registry file, the server reads `./maestro` without creating any files. If there is no
-`./maestro` either, it starts with no projects; add one from **Add board** in the UI or with `add`
+With no registry file but a `./maestro` capsule, the project you start in becomes the first
+registered project: the registry file is created with that one entry, so **Add board** works
+straight away. If there is no `./maestro` either, it starts with no projects; add one from **Add board** in the UI or with `add`
 below, and the registry file is created on that first add. It binds `127.0.0.1:3021`; if that port
 is busy it tries the next ports up to 3041, prints which one it used, and fails only if all are busy. Run from a
 terminal, `start` opens the page in your browser; pass `--no-open` (or set `CI`) to skip that.
@@ -144,8 +145,8 @@ stale version, `400` on any other status); unparking removes the field again.
 
 The **Projects** tab (also "Manage projects" in the rail) lists every registered project—active
 first, then parked—with its key, path, status, and ticket counts, and lets you add, park, unpark,
-or remove one. A stale edit is reported in the page and the list is refreshed. In single-project
-and import modes the list is shown read-only.
+or remove one. A stale edit is reported in the page and the list is refreshed. In import mode the
+list is shown read-only.
 
 To reuse an existing ai-maestro portfolio registry (`projects.json`) without copying
 it, import it explicitly:

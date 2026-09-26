@@ -382,12 +382,12 @@ export function total(c) {
 /**
  * Whether "Add board" can write the package registry, and what to tell the user otherwise.
  * @param {{mode?: string, generated?: boolean, path?: string | null} | null} cfg
- * @returns {{canWrite: boolean, reason: "generated" | "single" | null}}
+ * @returns {{canWrite: boolean, reason: "generated" | "readonly" | null}}
  */
 export function addBoardMode(cfg) {
   if (!cfg) return { canWrite: false, reason: null };
   if (cfg.generated) return { canWrite: false, reason: "generated" };
-  if (cfg.mode !== "registry" || !cfg.path || cfg.readonly) return { canWrite: false, reason: "single" };
+  if (cfg.mode !== "registry" || !cfg.path || cfg.readonly) return { canWrite: false, reason: "readonly" };
   return { canWrite: true, reason: null };
 }
 

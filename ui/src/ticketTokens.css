@@ -1,0 +1,22 @@
+.tt-page { display: grid; gap: 12px; min-width: 0; color: var(--ink); }
+.tt-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; justify-content: space-between; }
+.tt-head h2 { margin: 0; font: 600 18px var(--display); }
+.tt-head p { margin: 4px 0 0; color: var(--ink-2); font: 12px var(--sans); }
+.tt-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.tt-state { color: var(--ink-2); font: 12px var(--mono); }
+.tt-scroll { overflow-x: auto; max-width: 100%; border: 1px solid var(--hair); background: var(--panel); }
+.tt-table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+.tt-table caption { text-align: left; padding: 8px; color: var(--ink-2); font: 12px var(--sans); }
+.tt-table th, .tt-table td { padding: 6px 8px; border-bottom: 1px solid var(--hair); text-align: right; white-space: nowrap; }
+.tt-table th:first-child, .tt-table td:first-child, .tt-table .tt-left { text-align: left; }
+.tt-table thead th { color: var(--ink-2); font-weight: 600; }
+.tt-sort { cursor: pointer; color: inherit; background: transparent; border: 0; padding: 2px; font: inherit; font-weight: 600; }
+.tt-sort:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.tt-name { display: block; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; color: var(--ink-3); font: 11px var(--sans); }
+.tt-marker { display: inline-block; padding: 1px 6px; border-radius: 3px; border: 1px solid currentColor; font: 11px var(--mono); }
+.tt-measured { color: var(--ok); background: var(--ok-bg); }
+.tt-inferred { color: var(--warn); background: var(--warn-bg); }
+.tt-table tfoot th, .tt-table tfoot td { font-weight: 700; border-top: 2px solid var(--line); }
+.tt-projects { display: grid; gap: 6px; }
+.tt-projects h3 { margin: 0; font: 600 14px var(--display); }
+.tt-errors p { margin: 0; color: var(--err); font: 12px var(--sans); }

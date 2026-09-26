@@ -5,7 +5,7 @@
 
 export const ALL = "all";
 export const TABS = Object.freeze([
-  ["board", "Board"], ["usage", "Usage"], ["reports", "Reports"],
+  ["board", "Board"], ["usage", "Usage"], ["tokens", "Ticket tokens"], ["reports", "Reports"],
   ["plan", "Project plan"], ["roster", "Roster"], ["docs", "Documentation"], ["projects", "Projects"], ["help", "Help"],
 ]);
 const TAB_KEYS = new Set(TABS.map(([key]) => key));

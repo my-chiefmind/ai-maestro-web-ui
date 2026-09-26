@@ -1,7 +1,6 @@
 /**
  * Add board: in registry mode it writes maestro/web-ui.json (POST /api/config/boards). When an
- * imported registry is read-only or there is no registry file
- * (single-board mode), it explains where the board has to be added instead. The server assigns
+ * imported registry is read-only, it explains where the board has to be added instead. The server assigns
  * the id; the path field suggests folders under the home directory as you type.
  */
 import { useEffect, useState } from "react";
@@ -48,10 +47,10 @@ export function AddBoardWindow({ title, primary, onClose, cfg, onAdded }) {
             "Register the project in projects.json instead (entry below), then regenerate the config.",
           ]} />
         )}
-        {mode.reason === "single" && (
-          <Notice tone="warn" title="Single-board mode" lines={[
-            "No config file is loaded, so there is nowhere to record another board.",
-            "Start ai-maestro-web-ui with --config <file> (or create maestro-web-ui.config.json), or add the project to projects.json if your config is generated from it.",
+        {mode.reason === "readonly" && (
+          <Notice tone="warn" title="Read-only project list" lines={[
+            "This console was started with --import, so its project list is read-only.",
+            "Add the project to that projects.json (entry below), or start ai-maestro-web-ui without --import to manage projects here.",
           ]} />
         )}
         {errors.length > 0 && <Notice lines={errors} title="Could not add board" />}

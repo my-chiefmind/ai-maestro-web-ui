@@ -1,6 +1,6 @@
 /**
  * App — the cockpit-shaped shell: a rail of projects (the switcher, with "All projects" first),
- * eight tabs (Board, Usage, Reports, Project plan, Roster, Documentation, Projects, Help), and a drawer of editor
+ * nine tabs (Board, Usage, Ticket tokens, Reports, Project plan, Roster, Documentation, Projects, Help), and a drawer of editor
  * windows on the Board tab. Scope and tab live in the URL (`?scope=&tab=`) so a view is
  * shareable and reload-stable; the operations filters keep their own keys.
  * Board data is cached per board id and refetched after every write.
@@ -22,6 +22,7 @@ import { RosterPage } from "./RosterPage.jsx";
 import { DocumentsPage } from "./DocumentsPage.jsx";
 import { PlanOverviewPage } from "./PlanOverviewPage.jsx";
 import { UsagePage } from "./UsagePage.jsx";
+import { TicketTokensPage } from "./TicketTokensPage.jsx";
 import { HelpPage } from "./HelpPage.jsx";
 import { ProjectsPage } from "./ProjectsPage.jsx";
 import { WelcomeModal } from "./WelcomeModal.jsx";
@@ -255,6 +256,8 @@ export function App() {
           onOpenSpec={(sid) => open({ type: "spec", boardId: scopeId, specId: sid })} />;
       case "usage":
         return <UsagePage key={scopeId ?? ALL} scopeId={scopeId} title={title} />;
+      case "tokens":
+        return <TicketTokensPage key={`tokens:${scopeId ?? ALL}`} scopeId={scopeId} title={title} />;
       case "reports":
         return <DocumentsPage key={`reports:${scopeId ?? ALL}`} kind="reports" scopeId={scopeId} title={title} />;
       case "plan":

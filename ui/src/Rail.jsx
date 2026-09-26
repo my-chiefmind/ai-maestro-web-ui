@@ -30,7 +30,7 @@ export function Rail({ rail, error, active, operationsActive, mode, theme = "sys
           </button>
         )}
         <span className="rail-title">Maestro</span>
-        {mode && <span className="mode-tag" title={mode === "single" ? "Single-board mode (no config file)" : "Config mode"}>{mode}</span>}
+        {mode && <span className="mode-tag" title={mode === "import" ? "Imported project list (read-only)" : "Config mode"}>{mode}</span>}
         {onTheme && (
           <button type="button" className="icon-btn theme-btn" aria-label={`Theme: ${theme}. Switch theme`} title={`Theme: ${theme}`} onClick={onTheme}>
             {Icon[theme] ?? Icon.system}

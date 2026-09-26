@@ -4,7 +4,7 @@ import { HttpError } from "./http.mjs";
 import { assertKitSupported } from "./kitVersion.mjs";
 import {
   REGISTRY_RELATIVE_PATH, addRegistryEntry, assertCapsulePath, canonicalCapsule, readImport, readRegistry,
-  removeRegistryEntry, setRegistryEntryStatus, suggestIdentity,
+  removeRegistryEntry, setRegistryEntryStatus,
 } from "./registry.mjs";
 
 export const DEFAULT_PORT = 3021;
@@ -36,11 +36,10 @@ export function loadConfig(path = null, cwd = process.cwd()) {
   if (existsSync(registryPath)) return configFromRegistry(registryPath);
   // No registry and no ./maestro: start empty and writable; the registry file appears on the first add.
   if (!existsSync(resolve(cwd, "maestro"))) return configFromRegistry(registryPath);
-  const capsule = canonicalCapsule(resolve(cwd, "maestro")); const identity = suggestIdentity(capsule);
-  return {
-    mode: "single", path: null, registryPath, version: null, readonly: true,
-    port: DEFAULT_PORT, allowedHosts: [], boards: [resolveBoard({ ...identity, path: capsule })],
-  };
+  // No registry but a ./maestro capsule: the project the console starts in is the first registered
+  // project, so more can be added from the UI straight away.
+  addRegistryEntry(registryPath, { path: resolve(cwd, "maestro") });
+  return configFromRegistry(registryPath);
 }
 
 export function loadImportedConfig(path) {
