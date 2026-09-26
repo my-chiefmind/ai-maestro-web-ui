@@ -9,7 +9,8 @@ import { validateCapsule } from "./maestro.mjs";
 
 export const REGISTRY_RELATIVE_PATH = join("maestro", "web-ui.json");
 export const KEY_PATTERN = /^[a-z0-9][a-z0-9_-]*$/;
-const ENTRY_KEYS = new Set(["key", "label", "path"]);
+const ENTRY_KEYS = new Set(["key", "label", "path", "status"]);
+export const ENTRY_STATUSES = Object.freeze(["active", "parked"]);
 const AI_TOP_KEYS = new Set(["projects"]);
 const AI_ENTRY_KEYS = new Set(["name", "path", "registry", "status", "kind", "note"]);
 const LENSE_TOP_KEYS = new Set(["$comment", "schemaVersion", "projects"]);
@@ -54,7 +55,10 @@ function validateEntry(entry, where) {
   if (typeof entry.path !== "string" || !entry.path.trim() || !isAbsolute(entry.path)) {
     fail("EBADREGISTRY", `${where}.path must be an absolute capsule path.`);
   }
-  return { key: entry.key, label: entry.label, path: resolve(entry.path) };
+  if (entry.status !== undefined && !ENTRY_STATUSES.includes(entry.status)) fail("EBADREGISTRY", `${where}.status must be active or parked.`);
+  // `status` is optional (absent = active) and only carried when present, so a legacy file
+  // keeps its exact shape and its version.
+  return { key: entry.key, label: entry.label, path: resolve(entry.path), ...(entry.status !== undefined ? { status: entry.status } : {}) };
 }
 
 export function validateRegistry(raw, where = "registry") {
@@ -183,6 +187,19 @@ export function removeRegistryEntry(path, key, opts = {}) {
     [removed] = entries.splice(index, 1); return entries;
   }, opts);
   return { ...result, entry: removed };
+}
+
+/** Park or unpark one entry. Unparking drops the field, so the entry returns to its default shape. */
+export function setRegistryEntryStatus(path, key, status, opts = {}) {
+  if (!KEY_PATTERN.test(key)) fail("EBADREGISTRY", `Invalid registry key "${key}".`);
+  if (!ENTRY_STATUSES.includes(status)) fail("EBADREGISTRY", "status must be active or parked.");
+  const result = mutateRegistry(path, opts.expectVersion, (entries) => {
+    const entry = entries.find((item) => item.key === key);
+    if (!entry) fail("ENOREGISTRYENTRY", `No registered project "${key}".`);
+    if (status === "parked") entry.status = "parked"; else delete entry.status;
+    return entries;
+  }, opts);
+  return { ...result, status };
 }
 
 function importCapsule(entry, file, base) {

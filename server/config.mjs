@@ -1,9 +1,10 @@
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { HttpError } from "./http.mjs";
+import { assertKitSupported } from "./kitVersion.mjs";
 import {
   REGISTRY_RELATIVE_PATH, addRegistryEntry, assertCapsulePath, canonicalCapsule, readImport, readRegistry,
-  removeRegistryEntry, suggestIdentity,
+  removeRegistryEntry, setRegistryEntryStatus, suggestIdentity,
 } from "./registry.mjs";
 
 export const DEFAULT_PORT = 3021;
@@ -68,6 +69,8 @@ export function assertBoardUsable(board) {
 
 export function addBoard(config, entry) {
   if (config.readonly || !config.registryPath) throw new HttpError(400, { error: `${config.mode} mode is read-only.` });
+  // Refuse outdated or unversioned kits before anything touches the registry.
+  assertKitSupported(canonicalCapsule(entry.path));
   const result = addRegistryEntry(config.registryPath, {
     key: entry.key ?? entry.id, label: entry.label ?? entry.name, path: entry.path,
   }, { expectVersion: entry.expectVersion });
@@ -80,3 +83,12 @@ export function removeBoard(config, key, expectVersion) {
   const result = removeRegistryEntry(config.registryPath, key, { expectVersion }); refreshConfig(config);
   return { key, id: key, version: result.version };
 }
+
+export function setBoardStatus(config, key, status, expectVersion) {
+  if (config.readonly || !config.registryPath) throw new HttpError(400, { error: `${config.mode} mode is read-only.` });
+  const result = setRegistryEntryStatus(config.registryPath, key, status, { expectVersion }); refreshConfig(config);
+  return { key, status: result.status, version: result.version };
+}
+
+/** Parked boards are listed only by /api/config; every list and aggregate skips them. */
+export const activeBoards = (config) => config.boards.filter((b) => b.status === "active");

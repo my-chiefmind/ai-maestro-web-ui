@@ -21,6 +21,129 @@ export const OPERATION_BUCKETS = Object.freeze([
 ]);
 
 export const EMPTY_OPERATIONS_FILTERS = Object.freeze({ view: "all", q: "", project: "", area: "", priority: "", status: "" });
+export const TOKEN_CLASSES = Object.freeze(["total", "input", "output", "cacheRead", "cacheWrite", "thinking"]);
+export const USAGE_FILTER_KEYS = Object.freeze(["token", "provider", "model", "runtime", "provenance", "project", "ticket", "date"]);
+export const EMPTY_USAGE_FILTERS = Object.freeze({ token: "total", provider: "", model: "", runtime: "", provenance: "", project: "", ticket: "", date: "" });
+
+export function usageState(search = "") {
+  const query = new URLSearchParams(search);
+  const state = { ...EMPTY_USAGE_FILTERS };
+  for (const key of USAGE_FILTER_KEYS) {
+    const value = query.get(`u_${key}`);
+    if (value !== null) state[key] = value;
+  }
+  if (!TOKEN_CLASSES.includes(state.token)) state.token = "total";
+  return state;
+}
+
+export function usageSearch(state, search = "") {
+  const query = new URLSearchParams(search);
+  for (const key of USAGE_FILTER_KEYS) query.delete(`u_${key}`);
+  for (const key of USAGE_FILTER_KEYS) {
+    const value = state[key];
+    if (value && value !== EMPTY_USAGE_FILTERS[key]) query.set(`u_${key}`, value);
+  }
+  const value = query.toString();
+  return value ? `?${value}` : "";
+}
+
+export function usageMetric(row, tokenClass = "total") {
+  return Number((row?.tokens ?? row?.metrics?.tokens)?.[tokenClass] ?? 0);
+}
+
+const TOKEN_FIELDS = ["input", "output", "cacheRead", "cacheWrite", "thinking", "total"];
+const METRIC_FIELDS = ["turns", "runs", "applicationCalls", "usageRuns", "unavailableUsageRuns", "estimatedActiveMs", "exactMs", "spanMs", "firstTs", "lastTs"];
+const BREAKDOWN_FIELDS = ["project", "model", "agent", "runtime", "provider", "stage", "date", "provenance"];
+const COVERAGE_FIELDS = ["turns", "attributed", "skippedExact", "ticketsOnBoard", "ticketsWithUsage", "exactRuns", "telemetrySkippedLines", "applicationCalls", "applicationSkippedLines", "transcriptFiles", "transcriptSessions", "unassignedTokens", "unassignedTurns", "projectsRead", "projectsFailed"];
+
+const selected = (source, fields) => Object.fromEntries(fields.filter((key) => source?.[key] !== undefined).map((key) => [key, source[key]]));
+const safeTokens = (source) => selected(source, TOKEN_FIELDS);
+const safeMetrics = (source) => ({ ...selected(source, METRIC_FIELDS), tokens: safeTokens(source?.tokens) });
+const safeIdentity = (source) => selected(source, ["id", "key", "name", "label"]);
+const safeBreakdown = (source) => Object.fromEntries(BREAKDOWN_FIELDS.filter((key) => Array.isArray(source?.[key])).map((key) => [key,
+  source[key].map((row) => ({ ...selected(row, ["key", "label"]), ...safeMetrics(row) })),
+]));
+const safeCoverage = (source) => selected(source, COVERAGE_FIELDS);
+
+export function usageTicketKey(envelope, ticket) {
+  const project = ticket?.projectKey || envelope?.project?.key || envelope?.project?.id || "project";
+  return `${project}:${ticket?.id ?? ""}`;
+}
+
+/** Strip every field not in the public UI export contract, recursively. */
+export function safeUsageExport(envelope) {
+  const report = envelope?.report ?? {};
+  const safeTicket = (ticket) => ({
+    ...selected(ticket, ["id", "onBoard", "name", "status", "area", "epicId", "epicName", "boardModel", "agentPlan", "executionMode", "swag", "priority", "archived", "doneAt", "confidence", "timing", "cycleMs", "project", "projectKey"]),
+    metrics: safeMetrics(ticket.metrics), breakdown: safeBreakdown(ticket.breakdown),
+  });
+  const safeProjectRow = (row) => ({
+    ...selected(row, ["key", "name", "ok", "error", "template"]),
+    ...(row.totals ? { totals: safeMetrics(row.totals) } : {}),
+    ...(row.dateRange ? { dateRange: selected(row.dateRange, ["from", "to"]) } : {}),
+    ...(row.coverage ? { coverage: safeCoverage(row.coverage) } : {}),
+    ...(row.topTicket ? { topTicket: selected(row.topTicket, ["id", "name", "total"]) } : {}),
+  });
+  return {
+    ...selected(envelope, ["schema", "scope"]),
+    ...(envelope?.project ? { project: safeIdentity(envelope.project) } : {}),
+    ...(Array.isArray(envelope?.projects) ? { projects: envelope.projects.map(safeIdentity) } : {}),
+    ...(Array.isArray(envelope?.unavailableProjects) ? { unavailableProjects: envelope.unavailableProjects.map((row) => ({ project: safeIdentity(row.project), ...selected(row, ["code", "error"]) })) } : {}),
+    freshness: selected(envelope?.freshness, ["generatedAt", "lastObservedAt", "hasObservations"]),
+    report: {
+      ...selected(report, ["generatedAt", "schema", "kind", "project"]),
+      enabled: selected(report.enabled, ["transcripts", "telemetry"]),
+      dateRange: selected(report.dateRange, ["from", "to"]), coverage: safeCoverage(report.coverage),
+      totals: safeMetrics(report.totals), unassigned: safeMetrics(report.unassigned),
+      ...(report.projectOnly ? { projectOnly: safeMetrics(report.projectOnly) } : {}),
+      tickets: (report.tickets ?? []).map(safeTicket),
+      ...(Array.isArray(report.projects) ? { projects: report.projects.map(safeProjectRow) } : {}),
+      breakdown: safeBreakdown(report.breakdown),
+    },
+  };
+}
+
+export function usageFacets(envelope) {
+  const report = envelope?.report;
+  const projectNames = new Map((envelope?.projects ?? []).map((project) => [project.key, project.label || project.name || project.key]));
+  const values = (dimension) => [...new Set((report?.breakdown?.[dimension] ?? []).map((row) => row.key).filter(Boolean))].sort();
+  return {
+    providers: values("provider"), models: values("model"), runtimes: values("runtime"),
+    provenance: values("provenance"), dates: values("date"),
+    projects: (envelope?.projects ?? []).map((p) => [p.key, p.label || p.name || p.key]),
+    tickets: (report?.tickets ?? []).map((t) => {
+      const projectKey = t.projectKey || envelope?.project?.key || envelope?.project?.id || "project";
+      const project = t.project || projectNames.get(projectKey) || envelope?.project?.label || envelope?.project?.name || projectKey;
+      return [usageTicketKey(envelope, t), `${project} · ${t.id} · ${t.name || t.id}`];
+    }),
+  };
+}
+
+function hasBreakdown(ticket, dimension, value) {
+  return !value || (ticket.breakdown?.[dimension] ?? []).some((row) => row.key === value);
+}
+
+export function filterUsage(envelope, filters = EMPTY_USAGE_FILTERS) {
+  const report = envelope?.report;
+  if (!report) return { tickets: [], projects: [], trend: [], models: [], providers: [] };
+  const tickets = (report.tickets ?? []).filter((ticket) =>
+    (!filters.ticket || usageTicketKey(envelope, ticket) === filters.ticket) &&
+    (!filters.project || ticket.projectKey === filters.project) &&
+    hasBreakdown(ticket, "provider", filters.provider) && hasBreakdown(ticket, "model", filters.model) &&
+    hasBreakdown(ticket, "runtime", filters.runtime) && hasBreakdown(ticket, "provenance", filters.provenance) &&
+    hasBreakdown(ticket, "date", filters.date));
+  const dimension = (name, value = "") => (report.breakdown?.[name] ?? []).filter((row) => !value || row.key === value);
+  const projects = dimension("project", filters.project);
+  const trend = dimension("date", filters.date);
+  const models = dimension("model", filters.model);
+  const providers = dimension("provider", filters.provider);
+  const ranked = (rows) => [...rows].sort((a, b) => usageMetric(b, filters.token) - usageMetric(a, filters.token));
+  return { tickets: ranked(tickets), projects: ranked(projects), trend, models: ranked(models), providers: ranked(providers) };
+}
+
+export function formatTokens(value) {
+  return new Intl.NumberFormat("en-US").format(Number(value ?? 0));
+}
 
 /** Parse the shareable aggregate state. Unknown views fail closed to all. */
 export function operationsState(search = "") {
@@ -83,6 +206,7 @@ export const FIELDS = {
   name: "text", desc: "longtext", epicId: "text", priority: "enum", swag: "enum", area: "text",
   model: "enum", execution_mode: "enum", agent_plan: "list", depends_on: "list", traces_to: "list",
   testCmd: "text", human_gate: "bool",
+  dev_runtime: "text", dev_model: "text", reviewer_runtime: "text", reviewer_model: "text",
 };
 /** Fields the server requires; clearing them is not a deletion. */
 const REQUIRED = new Set(["name", "desc"]);
@@ -237,6 +361,9 @@ export function errorLines(err) {
   if (err.status === 423) {
     const resource = String(body.error || "This resource is locked").replace(/ by another writer\.?$/, "").replace(/\.$/, "");
     return [`${resource}${body.holder ? ` by ${formatHolder(body.holder)}` : ""} — try again in a moment.`];
+  }
+  if (typeof body.field === "string" && body.field) {
+    return [`${String(body.error || "Invalid input").replace(/\.$/, "")} (field: ${body.field}).`];
   }
   return [body.error || err.message || "Request failed."];
 }

@@ -1,0 +1,37 @@
+/* "Who runs this ticket" — per-ticket dev/reviewer runtime + model overrides (T-013). */
+.ticket-pickers {
+  margin: 0;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--hair);
+  border-radius: var(--r-md);
+  background: var(--panel);
+  color: var(--ink);
+  min-width: 0;
+}
+.ticket-pickers legend {
+  padding: 0 6px;
+  font-family: var(--display);
+  font-weight: 600;
+}
+.ticket-pickers > p { margin: 0 0 10px; }
+.ticket-pickers .picker-row {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: end;
+}
+.ticket-pickers .picker-row + .picker-row {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--hair);
+}
+.ticket-pickers .picker-role {
+  align-self: center;
+  font-weight: 600;
+  color: var(--accent-text);
+}
+.ticket-pickers input { width: 100%; min-width: 0; }
+.ticket-pickers input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+@media (max-width: 560px) {
+  .ticket-pickers .picker-row { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+}

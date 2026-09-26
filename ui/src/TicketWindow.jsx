@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "./api.js";
 import { Window, Notice } from "./Window.jsx";
+import "./ticketPickers.css";
 import { STATUSES, PRIORITY, SWAG, MODELS, MODES, toDraft, diffPatch, errorLines, eligibilityLines, rebaseDraft, shortVersion } from "./logic.js";
 
 /**
@@ -159,6 +160,25 @@ export function TicketWindow({ win, title, primary, onClose, state, ensureBoard,
             <Field label="Traces to" hint="plan ids"><input value={draft.traces_to} onChange={set("traces_to")} /></Field>
             <Field label="Test command" wide><input className="mono" value={draft.testCmd} onChange={set("testCmd")} /></Field>
             <Field label="Description" wide><textarea rows={8} value={draft.desc} onChange={set("desc")} /></Field>
+            <fieldset className="ticket-pickers wide">
+              <legend>Who runs this ticket</legend>
+              <p className="muted small">Leave blank to inherit the project default.</p>
+              <datalist id={`runtimes-${ticket.id}`}>{RUNTIME_SUGGESTIONS.map((r) => <option key={r} value={r} />)}</datalist>
+              {PICKER_ROLES.map(({ key, label }) => (
+                <div className="picker-row" key={key}>
+                  <span className="picker-role" aria-hidden="true">{label}</span>
+                  <label className="field">
+                    <span className="label">{label} runtime</span>
+                    <input value={draft[`${key}_runtime`]} onChange={set(`${key}_runtime`)} list={`runtimes-${ticket.id}`}
+                      placeholder="inherit" autoComplete="off" />
+                  </label>
+                  <label className="field">
+                    <span className="label">{label} model</span>
+                    <input value={draft[`${key}_model`]} onChange={set(`${key}_model`)} placeholder="inherit" autoComplete="off" />
+                  </label>
+                </div>
+              ))}
+            </fieldset>
             <label className="check wide"><input type="checkbox" checked={draft.human_gate} onChange={set("human_gate")} /> Human gate</label>
           </div>
 
@@ -185,6 +205,9 @@ export function TicketWindow({ win, title, primary, onClose, state, ensureBoard,
     </Window>
   );
 }
+
+const RUNTIME_SUGGESTIONS = ["claude", "codex"];
+const PICKER_ROLES = [{ key: "dev", label: "Dev" }, { key: "reviewer", label: "Reviewer" }];
 
 /** @param {{label: string, hint?: string, wide?: boolean, children: import("react").ReactNode}} props */
 function Field({ label, hint, wide, children }) {

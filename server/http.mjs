@@ -80,9 +80,10 @@ export function send(res, status, body) {
 }
 
 /** @param {import("node:http").ServerResponse} res @param {number} status @param {string} text @param {string} type */
-export function sendText(res, status, text, type) {
+export function sendText(res, status, text, type, extraHeaders = {}) {
   res.writeHead(status, {
     ...BASE_HEADERS,
+    ...extraHeaders,
     "content-type": `${type}; charset=utf-8`,
     "content-length": Buffer.byteLength(text),
   });

@@ -7,7 +7,7 @@
  */
 import { createRequire } from "node:module";
 
-export const PEER_RANGE = "^0.6.6";
+export const PEER_RANGE = "^0.6.7";
 
 function compatible(version) {
   const match = /^(\d+)\.(\d+)\.(\d+)(?:\+.*)?$/.exec(String(version));
@@ -42,14 +42,100 @@ export const aiMaestroVersion = peerPackage.version;
 const board = await import("@mychiefmind/ai-maestro/board");
 const plan = await import("@mychiefmind/ai-maestro/plan");
 const spec = await import("@mychiefmind/ai-maestro/spec");
+const {
+  buildUsageReport, buildPortfolioUsage, usageToCsv, DIMENSIONS, PORTFOLIO_DIMENSIONS,
+} = await import("@mychiefmind/ai-maestro/usage");
 // The web UI registry has a different writable schema, so server/registry.mjs remains its
 // owner. Loading the documented export here still makes it part of the peer smoke contract.
 await import("@mychiefmind/ai-maestro/registry");
+
+// Re-export only the documented usage surface this adapter consumes. Keeping the dimensions
+// beside the builders means routes never invent an export view that the peer cannot render.
+export { DIMENSIONS, PORTFOLIO_DIMENSIONS };
 
 const boardOptions = (b) => ({ boardPath: b.boardDir });
 
 export function readBoard(b) {
   return board.readBoard(boardOptions(b));
+}
+
+/** Canonical aggregate usage for one registered board. */
+export function readUsage(b) {
+  const report = buildUsageReport({ boardPath: b.boardDir });
+  // The registry key is the public project identity. A capsule's project name is editable and
+  // may itself contain local-machine information, so it must not become an HTTP identifier.
+  return { ...report, project: b.key, ...withSliceKeys(report, () => b.key) };
+}
+
+/**
+ * Usage slices (ai-maestro >= 0.6.7) carry a path-derived opaque `projectKey`. Replace it with
+ * the registry key so no path fingerprint crosses the HTTP boundary.
+ */
+function withSliceKeys(report, keyFor) {
+  if (!report.usageSlices) return {};
+  const rows = (report.usageSlices.rows ?? []).map((row) => ({ ...row, projectKey: keyFor(row.projectKey) }));
+  return { usageSlices: { ...report.usageSlices, rows } };
+}
+
+/**
+ * Canonical portfolio merge. `buildPortfolioUsage` deliberately derives internal keys from
+ * paths to distinguish same-named projects. Those hashes are useful inside Maestro, but the
+ * web API already has collision-free registry keys and must not expose path fingerprints.
+ */
+export function readPortfolioUsage(boards) {
+  const report = buildPortfolioUsage({
+    projects: boards.map((b) => ({ name: b.key, path: b.capsuleDir, kitDir: b.capsuleDir })),
+  });
+  const registryKeys = new Map(report.projects.map((project) => [project.key, project.name]));
+  const projects = report.projects.map((project) => ({ ...project, key: project.name }));
+  const tickets = report.tickets.map((ticket) => ({
+    ...ticket,
+    project: ticket.project,
+    projectKey: ticket.project,
+  }));
+  const breakdown = {
+    ...report.breakdown,
+    ...(report.breakdown.project ? {
+      project: report.breakdown.project.map((row) => ({ ...row, key: row.label ?? row.key, ...(row.label ? { label: row.label } : {}) })),
+    } : {}),
+  };
+  return { ...report, projects, tickets, breakdown, ...withSliceKeys(report, (key) => registryKeys.get(key) ?? null) };
+}
+
+/** Parse the upstream CSV (RFC 4180 quoting, "\n" record separator) into rows of cells. */
+function parseCsv(text) {
+  const rows = []; let row = []; let cell = ""; let quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (quoted) {
+      if (ch === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+      else if (ch === '"') quoted = false;
+      else cell += ch;
+    } else if (ch === '"') quoted = true;
+    else if (ch === ",") { row.push(cell); cell = ""; }
+    else if (ch === "\n") { row.push(cell); rows.push(row); row = []; cell = ""; }
+    else cell += ch;
+  }
+  if (cell !== "" || row.length) { row.push(cell); rows.push(row); }
+  return rows;
+}
+
+const PLAIN_NUMBER = /^-?\d+(\.\d+)?$/;
+const FORMULA_LEAD = /^[=+\-@\t\r]/;
+
+/** Neutralize spreadsheet formula injection and quote every special character. */
+export function safeCsvCell(value) {
+  let cell = String(value);
+  const formula = FORMULA_LEAD.test(cell) && !PLAIN_NUMBER.test(cell);
+  if (formula) cell = `'${cell}`;
+  return formula || /[",\n\r]/.test(cell) ? `"${cell.replaceAll('"', '""')}"` : cell;
+}
+
+export function usageCsv(report, view) {
+  const text = usageToCsv(report, { view });
+  const trailing = text.endsWith("\n");
+  const out = parseCsv(text).map((row) => row.map(safeCsvCell).join(",")).join("\n");
+  return trailing ? `${out}\n` : out;
 }
 
 /** Canonical, locked eligibility snapshot from ai-maestro. */

@@ -96,7 +96,7 @@ npx ai-maestro-web-ui --no-open       # start without opening the browser
 ## Requirements
 
 - Node.js 20.19.x, or Node.js 22.12 or newer
-- `@mychiefmind/ai-maestro` `>=0.6.6 <0.7` installed by the consuming project
+- `@mychiefmind/ai-maestro` `>=0.6.7 <0.7` installed by the consuming project
 
 ## Install and run
 
@@ -134,6 +134,18 @@ Paths are stored as canonical absolute capsule paths. Duplicate keys and paths a
 and remove take a registry lock, re-read under that lock, and atomically replace the registry;
 the HTTP form additionally uses a content version and returns `409` on a stale edit. Removing a
 key only changes this registry—it never deletes or edits project files.
+
+An entry may also carry `"status": "active" | "parked"` (absent means active; older files stay
+valid and are not rewritten). A parked project stays in the registry and in `/api/config`, but it
+leaves the rail, `/api/boards`, `/api/operations`, and every portfolio aggregate, and addressing it
+returns `404`. Park or unpark with `PATCH /api/config/boards/:key` and
+`{ "status": "parked", "expectVersion": "…" }` (lock, compare-and-swap, atomic write; `409` on a
+stale version, `400` on any other status); unparking removes the field again.
+
+The **Projects** tab (also "Manage projects" in the rail) lists every registered project—active
+first, then parked—with its key, path, status, and ticket counts, and lets you add, park, unpark,
+or remove one. A stale edit is reported in the page and the list is refreshed. In single-project
+and import modes the list is shown read-only.
 
 To reuse an existing ai-maestro portfolio registry (`projects.json`) without copying
 it, import it explicitly:
@@ -186,6 +198,31 @@ under the registered project: the roster (`/api/boards/<key>/roster`) scans the 
 `/api/reports` and `/api/docs` aggregate every readable project and isolate failures per project.
 Entry ids are strict single segments, symlinked entries are skipped and refused, home-level
 `~/.claude`, `~/.codex` and `~/.agents` are never scanned, and no response carries a filesystem path.
+
+## Token usage
+
+Usage reads come from ai-maestro's public aggregate API—this package never reads provider
+credentials or calls billing services. `GET /api/boards/:key/usage`
+returns one project's orchestration and application usage for every provider;
+`GET /api/usage` returns the portfolio merge and lists unreadable projects separately. Both
+responses include registry identity, freshness, token classes, attribution coverage,
+provenance, unassigned usage, and the canonical upstream report. CSV uses the same figures:
+
+```text
+GET /api/boards/my-project/usage?format=csv&view=provider
+GET /api/usage?format=csv&view=project
+```
+
+CSV views are `tickets`, the published single-project dimensions (`model`, `agent`, `runtime`,
+`provider`, `stage`, `date`), and—in portfolio scope—`project` and `provenance`. Unknown query
+parameters, formats, and views are rejected rather than ignored.
+
+The Usage tab shows the portfolio (All projects) or the selected project. It shows token counts only—no prices or costs. Headline counters always show
+the canonical complete-report totals; provider, model, runtime, provenance, project, ticket, date,
+and token-class controls are visibility filters and do not relabel filtered figures as new totals.
+The source guide keeps orchestration (agent work on tickets) separate from application calls,
+whatever the provider. Filter state uses only `u_*` URL parameters, while JSON
+exports download without storing report data in browser storage or history. CSV is served by the endpoints above for scripts; the UI client never sends query strings.
 
 ## Development
 

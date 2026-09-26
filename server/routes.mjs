@@ -3,13 +3,14 @@
  * resolved from the config by id only; a request never supplies a path.
  */
 
-import { HttpError, send, readJson, onlyKeys, BODY_LIMIT } from "./http.mjs";
+import { HttpError, send, sendText, readJson, onlyKeys, BODY_LIMIT } from "./http.mjs";
 import {
   ABSENT_SPEC_VERSION, aiMaestroVersion, applyPlan, archiveTicket, boardPayload,
   createEpic, createTicket, dropTicket, editEpic, editTicket, getBoardVersion,
   getSpecVersion, listSpecs, readBoard, readBoardEligibility, readPlan, readSpec, setTicketStatus, writeSpec,
+  DIMENSIONS, PORTFOLIO_DIMENSIONS, readPortfolioUsage, readUsage, usageCsv,
 } from "./maestro.mjs";
-import { addBoard, assertBoardUsable, removeBoard } from "./config.mjs";
+import { activeBoards, addBoard, assertBoardUsable, removeBoard, setBoardStatus } from "./config.mjs";
 import { suggestDirs } from "./dirSuggest.mjs";
 import { docsDir, listDocs, listReports, listRoster, readDoc, readReport, reportsDir, sendAsset } from "./capsuleFiles.mjs";
 
@@ -20,6 +21,7 @@ const TICKET_CREATE_FIELDS = [
 const TICKET_PATCH_FIELDS = [
   "name", "desc", "priority", "swag", "area", "model", "execution_mode", "agent_plan",
   "depends_on", "traces_to", "human_gate", "testCmd", "epicId",
+  "dev_runtime", "dev_model", "reviewer_runtime", "reviewer_model",
 ];
 const EPIC_CREATE_FIELDS = ["id", "name", "desc", "traces_to", "initiativeId"];
 const EPIC_PATCH_FIELDS = ["name", "desc", "traces_to", "initiativeId"];
@@ -47,6 +49,94 @@ function boardById(config, id) {
   const b = config.boards.find((x) => x.id === id);
   if (!b) throw new HttpError(404, { error: `No configured board ${id}.` });
   return assertBoardUsable(b);
+}
+
+const projectIdentity = (b) => ({ id: b.id, key: b.key, name: b.name, label: b.label });
+
+/** Usage endpoints have a stable error contract separate from mutable board resources. */
+function usageBoardById(config, id) {
+  const b = config.boards.find((candidate) => candidate.id === id);
+  if (!b) throw new HttpError(404, { error: "Project was not found.", code: "project-not-found" });
+  try { return assertBoardUsable(b); }
+  catch {
+    throw new HttpError(404, { error: "Project usage is unavailable.", code: "project-unavailable" });
+  }
+}
+
+function usageFreshness(report) {
+  const lastObservedAt = report.dateRange?.to ?? null;
+  return {
+    generatedAt: report.generatedAt,
+    lastObservedAt,
+    hasObservations: lastObservedAt !== null,
+  };
+}
+
+/** Strictly parse the complete query contract; repeated and ignored inputs are errors. */
+function usageQuery(req, dimensions) {
+  const query = new URL(req.url ?? "/", "http://localhost").searchParams;
+  const unknown = [...new Set([...query.keys()].filter((key) => key !== "format" && key !== "view"))];
+  if (unknown.length || query.getAll("format").length > 1 || query.getAll("view").length > 1) {
+    throw new HttpError(400, { error: "Invalid usage export query.", code: "usage-export-invalid" });
+  }
+  const format = query.get("format") ?? "json";
+  if (format !== "json" && format !== "csv") {
+    throw new HttpError(400, { error: "Invalid usage export format.", code: "usage-export-invalid" });
+  }
+  if (format === "json" && query.has("view")) {
+    throw new HttpError(400, { error: "A usage view is only valid for CSV exports.", code: "usage-export-invalid" });
+  }
+  const view = query.get("view") ?? "tickets";
+  if (format === "csv" && !["tickets", ...dimensions].includes(view)) {
+    throw new HttpError(400, { error: "Invalid usage export view.", code: "usage-export-invalid" });
+  }
+  return { format, view };
+}
+
+function sendUsage(res, query, envelope) {
+  if (query.format === "csv") {
+    sendText(res, 200, usageCsv(envelope.report, query.view), "text/csv", {
+      // query.view was validated against the fixed view set in usageQuery.
+      "content-disposition": `attachment; filename="usage-${query.view}.csv"`,
+    });
+  } else send(res, 200, envelope);
+}
+
+function aggregateUsage(config) {
+  const identities = config.boards.map(projectIdentity);
+  const unavailableProjects = [];
+  const usable = [];
+  for (const board of config.boards) {
+    try {
+      const candidate = assertBoardUsable(board);
+      // The portfolio builder isolates its own reads, but its result intentionally carries no
+      // registry identity. Preflight through the same public single-board API so an unreadable
+      // capsule can be joined to the correct key without exposing or hashing its path.
+      readUsage(candidate);
+      usable.push(candidate);
+    }
+    catch {
+      unavailableProjects.push({
+        project: projectIdentity(board), code: "project-unavailable", error: "Project usage could not be read.",
+      });
+    }
+  }
+  const report = readPortfolioUsage(usable);
+  for (const row of report.projects) {
+    if (row.ok !== false || unavailableProjects.some((item) => item.project.key === row.name)) continue;
+    const board = config.boards.find((candidate) => candidate.key === row.name);
+    if (board) unavailableProjects.push({
+      project: projectIdentity(board), code: "project-unavailable", error: "Project usage could not be read.",
+    });
+  }
+  return {
+    schema: 1,
+    scope: "portfolio",
+    projects: identities,
+    unavailableProjects,
+    freshness: usageFreshness(report),
+    report,
+  };
 }
 
 /** A write body: exactly `allowed` keys, with a string `expectVersion`. @param {any} body @param {string[]} allowed */
@@ -124,7 +214,7 @@ function aggregateOperations(config) {
   const projects = [];
   const errors = [];
   const buckets = Object.fromEntries(OPERATIONS_BUCKETS.map((name) => [name, []]));
-  for (const configured of config.boards) {
+  for (const configured of activeBoards(config)) {
     try {
       const project = aggregateProject(assertBoardUsable(configured));
       projects.push(project.project);
@@ -151,7 +241,7 @@ function aggregateProjects(config, names, collect) {
   const projects = []; const errors = [];
   /** @type {Record<string, any[]>} */
   const rows = Object.fromEntries(names.map((name) => [name, []]));
-  for (const configured of config.boards) {
+  for (const configured of activeBoards(config)) {
     const project = { id: configured.id, key: configured.key, name: configured.name, label: configured.label };
     try {
       const collected = collect(assertBoardUsable(configured));
@@ -178,6 +268,24 @@ async function planWrite(req, res, b) {
 const ROUTES = [
   ["GET", /^\/api\/health$/, ({ res, config }) => send(res, 200, { ok: true, mode: config.mode, aiMaestro: aiMaestroVersion })],
 
+  ["GET", /^\/api\/usage$/, ({ req, res, config }) => {
+    const query = usageQuery(req, PORTFOLIO_DIMENSIONS);
+    sendUsage(res, query, aggregateUsage(config));
+  }],
+
+  ["GET", /^\/api\/boards\/([^/]+)\/usage$/, ({ req, res, params, config }) => {
+    const query = usageQuery(req, DIMENSIONS);
+    const b = usageBoardById(config, params[0]);
+    const report = readUsage(b);
+    sendUsage(res, query, {
+      schema: 1,
+      scope: "project",
+      project: projectIdentity(b),
+      freshness: usageFreshness(report),
+      report,
+    });
+  }],
+
   ["GET", /^\/api\/operations$/, ({ res, config }) => send(res, 200, aggregateOperations(config))],
 
   // Cockpit parity data (read-only, project-level; no public ai-maestro API in 0.6.6).
@@ -195,7 +303,7 @@ const ROUTES = [
 
   ["GET", /^\/api\/boards$/, ({ res, config }) => {
     // Per-board isolation: one unreadable board is an `error` entry, never a failed list.
-    send(res, 200, config.boards.map((b) => {
+    send(res, 200, activeBoards(config).map((b) => {
       try {
         assertBoardUsable(b);
         const snapshot = readBoard(b);
@@ -340,6 +448,13 @@ const ROUTES = [
     if (typeof body.path !== "string" || !body.path.trim()) throw new HttpError(400, { error: "path is required." });
     if (typeof body.expectVersion !== "string" || !body.expectVersion) throw new HttpError(400, { error: "expectVersion is required." });
     send(res, 201, addBoard(config, body));
+  }],
+
+  ["PATCH", /^\/api\/config\/boards\/([^/]+)$/, async ({ req, res, params, config }) => {
+    const body = onlyKeys(await readJson(req), ["status", "expectVersion"], "body");
+    if (body.status !== "active" && body.status !== "parked") throw new HttpError(400, { error: "status must be active or parked." });
+    if (typeof body.expectVersion !== "string" || !body.expectVersion) throw new HttpError(400, { error: "expectVersion is required." });
+    send(res, 200, setBoardStatus(config, params[0], body.status, body.expectVersion));
   }],
 
   ["DELETE", /^\/api\/config\/boards\/([^/]+)$/, async ({ req, res, params, config }) => {

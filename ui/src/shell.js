@@ -6,7 +6,7 @@
 export const ALL = "all";
 export const TABS = Object.freeze([
   ["board", "Board"], ["usage", "Usage"], ["reports", "Reports"],
-  ["plan", "Project plan"], ["roster", "Roster"], ["docs", "Documentation"], ["help", "Help"],
+  ["plan", "Project plan"], ["roster", "Roster"], ["docs", "Documentation"], ["projects", "Projects"], ["help", "Help"],
 ]);
 const TAB_KEYS = new Set(TABS.map(([key]) => key));
 const SHELL_KEYS = ["scope", "tab"];
@@ -74,3 +74,16 @@ function planRowCount(value) {
 
 /** Whether a usage request failure means "not available in this build" rather than an error. */
 export const usageUnavailable = (error) => error?.status === 404 || error?.status === 405;
+
+/**
+ * Projects tab rows: every configured board, active first then parked, each by label. Active
+ * rows carry their ticket counts (or read error) from the /api/boards rail list.
+ * @param {any[] | undefined} boards @param {any[] | null} rail
+ */
+export function projectRows(boards, rail) {
+  const byKey = new Map((rail ?? []).map((row) => [row.key ?? row.id, row]));
+  return (boards ?? []).map((b) => {
+    const status = b.status === "parked" ? "parked" : "active"; const listed = byKey.get(b.key);
+    return { key: b.key, label: b.label ?? b.name ?? b.key, path: b.path, status, counts: listed?.counts ?? null, error: listed?.error ?? null };
+  }).sort((a, z) => (a.status === z.status ? 0 : a.status === "active" ? -1 : 1) || a.label.localeCompare(z.label));
+}

@@ -1,6 +1,6 @@
 /**
  * App — the cockpit-shaped shell: a rail of projects (the switcher, with "All projects" first),
- * seven tabs (Board, Usage, Reports, Project plan, Roster, Documentation, Help), and a drawer of editor
+ * eight tabs (Board, Usage, Reports, Project plan, Roster, Documentation, Projects, Help), and a drawer of editor
  * windows on the Board tab. Scope and tab live in the URL (`?scope=&tab=`) so a view is
  * shareable and reload-stable; the operations filters keep their own keys.
  * Board data is cached per board id and refetched after every write.
@@ -23,6 +23,7 @@ import { DocumentsPage } from "./DocumentsPage.jsx";
 import { PlanOverviewPage } from "./PlanOverviewPage.jsx";
 import { UsagePage } from "./UsagePage.jsx";
 import { HelpPage } from "./HelpPage.jsx";
+import { ProjectsPage } from "./ProjectsPage.jsx";
 import { WelcomeModal } from "./WelcomeModal.jsx";
 import { escapeBelongsToControl } from "./logic.js";
 import { planRefresh, startBoardPoller } from "./autoRefresh.js";
@@ -259,6 +260,10 @@ export function App() {
       case "plan":
         if (!scopeId) return <PlanOverviewPage rail={rail} title={title} onOpenProject={(id) => setScope(id)} />;
         return <PlanWindow key={scopeId} win={{ boardId: scopeId }} title={title} primary />;
+      case "projects":
+        // Portfolio-level: the registry is shared, so the page ignores the project scope.
+        return <ProjectsPage title="Projects" cfg={cfg} rail={rail} onChanged={loadRail}
+          onAdd={() => open({ type: "add" })} onOpenProject={(id) => setShell({ scope: id, tab: "board" })} />;
       case "help":
         return <HelpPage title="Help" />;
       case "roster":
@@ -273,6 +278,7 @@ export function App() {
       <Rail rail={rail} error={railError} active={scopeId} operationsActive={!scopeId}
         onOperations={() => setScope(ALL)} onOpen={(id) => setScope(id)}
         onAdd={() => open({ type: "add" })} onRefresh={loadRail} mode={cfg?.mode}
+        projectsActive={shell.tab === "projects"} onProjects={() => setShell({ scope: ALL, tab: "projects" })}
         theme={theme} onTheme={() => setTheme((t) => nextTheme(t))}
         collapsed={railCollapsed} onCollapse={() => setRailCollapsed((c) => !c)} />
       <div className="workspace">

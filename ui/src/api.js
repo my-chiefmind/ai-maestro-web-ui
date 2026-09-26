@@ -51,6 +51,8 @@ export const ALLOWED = Object.freeze([
   ["POST", new RegExp(`^/boards/${SEG}/epics$`)],
   ["PATCH", new RegExp(`^/boards/${SEG}/epics/${SEG}$`)],
   ["POST", /^\/config\/boards$/],
+  ["PATCH", new RegExp(`^/config/boards/${SEG}$`)],
+  ["DELETE", new RegExp(`^/config/boards/${SEG}$`)],
   ["POST", /^\/fs\/dirs$/],
 ].map(([m, re]) => Object.freeze([m, re])));
 

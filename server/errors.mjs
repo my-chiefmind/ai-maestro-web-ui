@@ -13,6 +13,16 @@ import { HttpError } from "./http.mjs";
 export function toHttp(e) {
   if (e instanceof HttpError) return { status: e.status, body: e.body };
   const err = /** @type {any} */ (e);
+  if (err?.code === "EUSAGEREAD") return {
+    status: 503,
+    body: { error: "Project usage could not be read.", code: "usage-unavailable" },
+    log: typeof err?.message === "string" ? err.message : undefined,
+  };
+  if (err?.code === "EUSAGEINPUT") return {
+    status: 500,
+    body: { error: "Usage reporting is not configured correctly.", code: "usage-configuration-error" },
+    log: typeof err?.message === "string" ? err.message : undefined,
+  };
   if (err?.code === "EBOARDCONFLICT") {
     return { status: 409, body: {
       error: "The board changed on disk since you read it. Re-read it and reapply the change.",
@@ -22,7 +32,11 @@ export function toHttp(e) {
   if (err?.code === "EBOARDLOCK") {
     return { status: 423, body: { error: "The board is locked by another writer.", holder: err.holder ?? null } };
   }
-  if (err?.code === "EBOARDINPUT") return { status: 400, body: { error: "Invalid board input." } };
+  if (err?.code === "EBOARDINPUT") {
+    // `field` names the offending input key (e.g. "reviewer_runtime") — safe to expose.
+    const field = typeof err.field === "string" && /^[A-Za-z_][\w.]*$/.test(err.field) ? err.field : null;
+    return { status: 400, body: { error: "Invalid board input.", ...(field ? { field } : {}) } };
+  }
   if (err?.code === "EBOARDVALIDATION") return { status: 400, body: {
     error: "The result would be an invalid board.", errors: err.errors ?? [], warnings: err.warnings ?? [],
   } };
