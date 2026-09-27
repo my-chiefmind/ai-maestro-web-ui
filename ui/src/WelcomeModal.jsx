@@ -20,7 +20,7 @@ export function markWelcomeSeen(storage) {
 }
 
 /** @param {{onClose?: () => void}} props */
-export function WelcomeModal({ onClose }) {
+export function WelcomeModal({ onClose, projectMode = false }) {
   const [open, setOpen] = useState(() => !welcomeSeen());
   const [dontShow, setDontShow] = useState(true);
   const titleId = useId();
@@ -70,8 +70,11 @@ export function WelcomeModal({ onClose }) {
           <h2 id={titleId} tabIndex={-1}>Plan your first project</h2>
         </header>
         <div className="welcome-body">
-          <p id={descId}>Add a project with <strong>Add board</strong>, then paste this prompt into Claude Code (or any
-            agentic tool) at that project's root. The agent writes the plan and board; you review them here.</p>
+          <p id={descId}>{projectMode
+            ? <>Paste this prompt into Claude Code (or any agentic tool) at this project's root. The agent writes the plan
+              and board; you review them here.</>
+            : <>Add a project with <strong>Add board</strong>, then paste this prompt into Claude Code (or any
+              agentic tool) at that project's root. The agent writes the plan and board; you review them here.</>}</p>
           <div className="help-prompt">
             <pre>{ONBOARDING_PROMPT}</pre>
             <CopyButton text={ONBOARDING_PROMPT} label="Copy prompt" />

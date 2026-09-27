@@ -27,10 +27,10 @@ import { HelpPage } from "./HelpPage.jsx";
 import { ProjectsPage } from "./ProjectsPage.jsx";
 import { WelcomeModal } from "./WelcomeModal.jsx";
 import { UpdateBanner } from "./UpdateBanner.jsx";
-import { escapeBelongsToControl } from "./logic.js";
+import { escapeBelongsToControl, modeBadge } from "./logic.js";
 import { planRefresh, startBoardPoller } from "./autoRefresh.js";
 import { applyTheme, nextTheme, readTheme } from "./theme.js";
-import { ALL, TABS, shellSearch, shellState } from "./shell.js";
+import { ALL, TABS, effectiveScope, shellSearch, shellState, visibleTabs } from "./shell.js";
 
 /**
  * @typedef {{key: string, type: "ticket" | "create" | "epics" | "specs" | "spec" | "archive" | "add", boardId?: string, ticketId?: string, specId?: string}} Win
@@ -45,6 +45,9 @@ export function App() {
   const [rail, setRail] = useState(/** @type {any[] | null} */ (null));
   const [railError, setRailError] = useState(/** @type {string | null} */ (null));
   const [cfg, setCfg] = useState(/** @type {any} */ (null));
+  // Project mode: one project, no project management (no Add board, Manage projects, or Projects tab).
+  const projectMode = cfg?.mode === "project";
+  const badge = modeBadge(cfg);
   const [boards, setBoards] = useState(/** @type {Record<string, {data?: any, error?: string, loading?: boolean}>} */ ({}));
   const [wins, setWins] = useState(/** @type {Win[]} */ ([]));
   const [active, setActive] = useState(/** @type {string | null} */ (null));
@@ -129,16 +132,26 @@ export function App() {
 
   useEffect(() => { loadRail(); }, []);
 
-  const scopeId = shell.scope === ALL ? null : shell.scope;
+  // Resolved synchronously so project mode never renders a portfolio frame; the effect below only fixes the URL.
+  const resolvedScope = effectiveScope(cfg, shell.scope);
+  const scopeId = resolvedScope === ALL ? null : resolvedScope;
+  // Until the config says which mode this is, the scope is unknown: render a neutral loading state.
+  // A failed config load never falls back to the portfolio: it shows an error with Retry instead.
+  const ready = cfg != null;
+  const configFailed = !ready && railError != null;
   useEffect(() => {
-    if (rail && scopeId && !rail.some((b) => b.id === scopeId)) setScope(ALL);
-  }, [rail, scopeId]);
+    if (!projectMode && rail && scopeId && !rail.some((b) => b.id === scopeId)) setScope(ALL);
+  }, [rail, scopeId, projectMode]);
   useEffect(() => {
     if (scopeId && shell.tab === "board" && !boards[scopeId]?.data && !boards[scopeId]?.loading) loadBoard(scopeId);
   }, [scopeId, shell.tab]);
 
   const setScope = useCallback((/** @type {string} */ scope) => setShell((s) => (s.scope === scope ? s : { ...s, scope })), []);
   const setTab = useCallback((/** @type {string} */ tab) => setShell((s) => ({ ...s, tab })), []);
+  // Project mode has no portfolio: the scope is always the one project (a stale ?scope=all included).
+  useEffect(() => { if (resolvedScope !== shell.scope) setScope(resolvedScope); }, [resolvedScope, shell.scope, setScope]);
+  // A ?tab=projects URL opened in project mode lands on the Board instead.
+  useEffect(() => { if (projectMode && shell.tab === "projects") setTab("board"); }, [projectMode, shell.tab, setTab]);
 
   // Focus management: remember what opened each window so closing it returns focus there,
   // and move focus into a window when it becomes the visible one (it may be off-screen at 375px).
@@ -196,7 +209,7 @@ export function App() {
   }, [drawerOpen, current, close]);
 
   const nameOf = (/** @type {string | undefined | null} */ id) => rail?.find((b) => b.id === id)?.name ?? id ?? "";
-  const scopeName = scopeId ? nameOf(scopeId) : "All projects";
+  const scopeName = scopeId ? nameOf(scopeId) : projectMode ? "" : "All projects";
   const titleOf = (/** @type {Win} */ w) => {
     if (w.type === "ticket") return w.ticketId ?? "";
     if (w.type === "create") return `New ticket · ${nameOf(w.boardId)}`;
@@ -240,6 +253,17 @@ export function App() {
   };
 
   const renderTab = () => {
+    if (configFailed) {
+      return (
+        <div className="notice notice-error config-error" role="alert">
+          <strong>Could not load configuration</strong>
+          <p>{railError}</p>
+          <button type="button" className="btn" onClick={() => { setRailError(null); loadRail(); }}>Retry</button>
+        </div>
+      );
+    }
+    if (!ready) return <p className="loading" role="status">Loading…<span className="spinner" aria-hidden="true" /></p>;
+    if (projectMode && shell.tab === "projects") return null;
     const title = `${tabLabel(shell.tab)} · ${scopeName}`;
     switch (shell.tab) {
       case "board":
@@ -270,7 +294,7 @@ export function App() {
         return <ProjectsPage title="Projects" cfg={cfg} rail={rail} onChanged={loadRail}
           onAdd={() => open({ type: "add" })} onOpenProject={(id) => setShell({ scope: id, tab: "board" })} />;
       case "help":
-        return <HelpPage title="Help" />;
+        return <HelpPage title="Help" cfg={cfg} />;
       case "roster":
         return <RosterPage key={scopeId ?? ALL} scopeId={scopeId} title={title} />;
       default:
@@ -280,10 +304,10 @@ export function App() {
 
   return (
     <div className={`shell ${railCollapsed ? "rail-collapsed" : ""}`}>
-      <Rail rail={rail} error={railError} active={scopeId} operationsActive={!scopeId}
+      <Rail rail={rail} error={railError} active={scopeId} operationsActive={!scopeId} single={!ready || projectMode}
         onOperations={() => setScope(ALL)} onOpen={(id) => setScope(id)}
-        onAdd={() => open({ type: "add" })} onRefresh={loadRail} mode={cfg?.mode}
-        projectsActive={shell.tab === "projects"} onProjects={() => setShell({ scope: ALL, tab: "projects" })}
+        onAdd={!ready || projectMode ? undefined : () => open({ type: "add" })} onRefresh={loadRail} mode={badge}
+        projectsActive={shell.tab === "projects"} onProjects={!ready || projectMode ? undefined : () => setShell({ scope: ALL, tab: "projects" })}
         theme={theme} onTheme={() => setTheme((t) => nextTheme(t))}
         onCheckUpdates={cfg?.readonly ? undefined : () => setUpdateCheck((n) => n + 1)}
         collapsed={railCollapsed} onCollapse={() => setRailCollapsed((c) => !c)} />
@@ -291,11 +315,14 @@ export function App() {
         <h1 className="sr-only">Maestro boards</h1>
         <header className="topbar">
           <div className="topbar-scope">
-            <span className="kind">{scopeId ? "project" : "portfolio"}</span>
-            <span className="topbar-title">{scopeName}</span>
+            {ready && <>
+              <span className="kind">{scopeId || projectMode ? "project" : "portfolio"}</span>
+              <span className="topbar-title">{scopeName}</span>
+            </>}
+            {badge && <span className={`kind mode-badge mode-${badge.kind}`} title={badge.title} data-mode={badge.kind}>{badge.label}</span>}
           </div>
           <nav className="tabs" aria-label="Areas">
-            {TABS.map(([key, label]) => (
+            {visibleTabs(cfg?.mode).map(([key, label]) => (
               <button key={key} type="button" className={`tab ${shell.tab === key ? "is-active" : ""}`}
                 aria-current={shell.tab === key ? "page" : undefined} onClick={() => setTab(key)}>{label}</button>
             ))}
@@ -331,7 +358,7 @@ export function App() {
           )}
         </main>
       </div>
-      <WelcomeModal />
+      <WelcomeModal projectMode={projectMode} />
     </div>
   );
 }

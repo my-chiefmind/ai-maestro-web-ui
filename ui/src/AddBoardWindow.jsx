@@ -1,5 +1,5 @@
 /**
- * Add board: in registry mode it writes maestro/web-ui.json (POST /api/config/boards). When an
+ * Add board: in dashboard mode it writes the dashboard's ai-maestro-dashboard.json (POST /api/config/boards). When an
  * imported registry is read-only, it explains where the board has to be added instead. The server assigns
  * the id; the path field suggests folders under the home directory as you type.
  */

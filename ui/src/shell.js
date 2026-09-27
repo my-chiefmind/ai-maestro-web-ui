@@ -9,6 +9,18 @@ export const TABS = Object.freeze([
   ["plan", "Project plan"], ["roster", "Roster"], ["docs", "Documentation"], ["projects", "Projects"], ["help", "Help"],
 ]);
 const TAB_KEYS = new Set(TABS.map(([key]) => key));
+
+/** Project mode has no project management, so it has no Projects tab. @param {string | undefined} mode */
+export const visibleTabs = (mode) => (mode === "project" ? TABS.filter(([key]) => key !== "projects") : TABS);
+/**
+ * Project mode has no portfolio ("All projects"): the scope is always its one board, whatever the URL
+ * says (a stale ?scope=all included). Other modes keep the requested scope. Returns null when unknown.
+ * @param {{mode?: string, boards?: {id: string}[]} | null | undefined} cfg @param {string} requested
+ */
+export function effectiveScope(cfg, requested) {
+  if (cfg?.mode !== "project") return requested;
+  return cfg.boards?.[0]?.id ?? requested;
+}
 const SHELL_KEYS = ["scope", "tab"];
 const SCOPE = /^[a-z0-9][a-z0-9_-]*$/;
 

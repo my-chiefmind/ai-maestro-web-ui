@@ -24,12 +24,29 @@ I'll ask the orchestrator agent to start.`;
 
 /** Dashboard CLI commands, as bin/ai-maestro-web-ui.mjs accepts them. */
 export const COMMANDS = [
-  ["npx ai-maestro-web-ui", "Start the dashboard on 127.0.0.1:3021 (next free port if busy) and open the browser"],
+  ["npx ai-maestro-web-ui", "Inside a project: show just that project. In a dashboard folder: the dashboard. Serves 127.0.0.1:3021 (next free port if busy) and opens the browser"],
   ["npx ai-maestro-web-ui --no-open", "Start without opening a browser (CI=1 does the same)"],
-  ["npx ai-maestro-web-ui add <path>", "Register a project folder; --key and --label are optional"],
-  ["npx ai-maestro-web-ui list", "Print the registered projects"],
-  ["npx ai-maestro-web-ui remove <key>", "Unregister a project; its files are not changed"],
+  ["npx ai-maestro-web-ui dashboard init", "Make the current (non-project) folder a dashboard: creates ai-maestro-dashboard.json"],
+  ["npx ai-maestro-web-ui dashboard --home <dir>", "Start the dashboard kept in <dir> from any folder"],
+  ["npx ai-maestro-web-ui add <path>", "Dashboard: register a project folder; --key, --label and --home are optional"],
+  ["npx ai-maestro-web-ui list", "Dashboard: print the registered projects"],
+  ["npx ai-maestro-web-ui remove <key>", "Dashboard: unregister a project; its files are not changed"],
 ];
+
+/** @param {{cfg?: any}} props */
+function ModeNote({ cfg }) {
+  if (cfg?.mode === "project") {
+    return <p className="help-mode" data-mode="project"><strong>Project mode.</strong> You started inside a project, so only
+      this project is shown and projects cannot be added or removed here. To follow several projects, make a separate
+      dashboard folder and run <code>npx ai-maestro-web-ui dashboard init</code> there.</p>;
+  }
+  if (cfg?.mode === "registry") {
+    return <p className="help-mode" data-mode="dashboard"><strong>Dashboard mode.</strong> The project list lives in
+      <code>{cfg.path}</code>{cfg.home ? <> (dashboard folder <code>{cfg.home}</code>)</> : null}. Project data stays in each
+      project's own <code>maestro</code> folder.</p>;
+  }
+  return null;
+}
 
 /** Agent commands, run inside Claude Code at a project's root. */
 export const AGENT_COMMANDS = [
@@ -97,19 +114,25 @@ function CommandList({ rows, copy = true }) {
   </ul>;
 }
 
-/** @param {{title: string}} props */
-export function HelpPage({ title }) {
+/** @param {{title: string, cfg?: any}} props */
+export function HelpPage({ title, cfg }) {
   return <Window title={title} kind="help">
     <div className="help">
-      <p className="help-lede">This dashboard shows every registered AI Maestro project side by side: boards, plans,
-        reports, usage and roster. The work itself is done by AI Maestro agents inside each project; you plan,
-        review and edit here.</p>
+      {cfg?.mode === "project"
+        ? <p className="help-lede">This page shows one AI Maestro project: its board, plan, reports, usage and roster.
+          The work itself is done by AI Maestro agents inside the project; you plan, review and edit here.</p>
+        : <p className="help-lede">This dashboard shows every registered AI Maestro project side by side: boards, plans,
+          reports, usage and roster. The work itself is done by AI Maestro agents inside each project; you plan,
+          review and edit here.</p>}
+      <ModeNote cfg={cfg} />
 
       <section aria-labelledby="help-start">
         <h3 id="help-start">Getting started</h3>
         <ol className="help-steps">
-          <li><strong>Add a project.</strong> Click <strong>Add board</strong> in the rail and pick the project folder, or
-            run <code>npx ai-maestro-web-ui add &lt;path&gt;</code>. The list lives in <code>maestro/web-ui.json</code>.</li>
+          <li><strong>Single project:</strong> run <code>npx ai-maestro-web-ui</code> inside the project. <strong>Several
+            projects:</strong> make a dashboard folder, run <code>npx ai-maestro-web-ui dashboard init</code> there, then click
+            <strong> Add board</strong> or run <code>npx ai-maestro-web-ui add &lt;path&gt;</code>. The list lives in the
+            dashboard's <code>ai-maestro-dashboard.json</code>.</li>
           <li><strong>Plan it.</strong> In Claude Code at the project root run <code>/project-plan</code>, or paste the prompt below.</li>
           <li><strong>Conduct.</strong> Approve the plan, then run <code>/orchestrator</code>; watch tickets move on the Board tab.</li>
         </ol>
@@ -150,8 +173,10 @@ export function HelpPage({ title }) {
           The dashboard server runs only on <code>127.0.0.1</code> and reads those folders through AI Maestro's own API.</p>
         <p>Edits go back through the same API, which locks the file and checks it has not changed since you loaded it.
           If an agent changed the board meanwhile, you get a conflict notice instead of overwriting their work.</p>
-        <p>Pick <strong>All projects</strong> for one operations view across every project, or a single project for its
-          board and plan. Nothing leaves your machine.</p>
+        {cfg?.mode === "project"
+          ? <p>Every tab shows this one project. Nothing leaves your machine.</p>
+          : <p>Pick <strong>All projects</strong> for one operations view across every project, or a single project for its
+            board and plan. Nothing leaves your machine.</p>}
       </section>
     </div>
   </Window>;

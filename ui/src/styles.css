@@ -419,6 +419,8 @@ code { font-size: 12px; background: var(--panel-2); border: 1px solid var(--hair
 .notice ul { margin: 4px 0 0; padding-left: 18px; }
 .notice-error { background: var(--err-bg); color: var(--err); border-color: color-mix(in srgb, var(--err) 35%, transparent); }
 .notice-warn { background: var(--warn-bg); color: var(--warn); border-color: color-mix(in srgb, var(--warn) 35%, transparent); }
+.config-error { margin: 16px; }
+.config-error p { margin: 0 0 8px; overflow-wrap: anywhere; }
 .notice-ok { background: var(--ok-bg); color: var(--ok); border-color: color-mix(in srgb, var(--ok) 35%, transparent); }
 
 /* ---------- inputs ---------- */
@@ -679,6 +681,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
   flex: none;
 }
 .topbar-scope { display: flex; align-items: center; gap: 10px; padding-bottom: 10px; min-width: 0; }
+.mode-badge { flex: none; margin-left: auto; cursor: help; }
 .topbar-title { font: 600 15px/1.2 var(--display); letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tabs { display: flex; gap: 2px; margin-left: auto; flex: 0 0 auto; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }

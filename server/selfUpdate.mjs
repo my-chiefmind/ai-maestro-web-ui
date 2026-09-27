@@ -4,10 +4,10 @@
  * a request never supplies a path. Every command is spawned with an argv array, no shell.
  */
 import { spawn as nodeSpawn } from "node:child_process";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { homedir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { readKitVersion } from "./kitVersion.mjs";
 
 export const KIT_PKG = "@mychiefmind/ai-maestro";
@@ -135,6 +135,20 @@ export function updateStatus(boards, latest) {
   };
 }
 
+/**
+ * TEST-ONLY: `AI_MAESTRO_WEB_UI_TEST_UI_SPEC` swaps `@mychiefmind/ai-maestro-web-ui@latest` in the
+ * "install web UI" step for a local `npm pack` tarball, so the upgrade-safety suite
+ * (`npm run test:upgrade`) exercises the real update path against this checkout instead of npm.
+ * Honoured only when the value is an absolute path to an existing `.tgz` file; anything else is
+ * ignored, so production always installs `@latest` from the registry.
+ * @param {NodeJS.ProcessEnv} [env]
+ */
+export function uiInstallSpec(env = process.env) {
+  const spec = env.AI_MAESTRO_WEB_UI_TEST_UI_SPEC;
+  if (spec && isAbsolute(spec) && spec.endsWith(".tgz") && existsSync(spec)) return spec;
+  return `${UI_PKG}@latest`;
+}
+
 const NPM = process.platform === "win32" ? "npm.cmd" : "npm";
 const NPX = process.platform === "win32" ? "npx.cmd" : "npx";
 
@@ -149,7 +163,7 @@ export function updateSteps(project) {
     { label: "install kit", cmd: NPM, args: ["install", "-D", `${KIT_PKG}@latest`] },
     { label: "ai-maestro update", cmd: NPX, args: ["ai-maestro", "update"] },
   ];
-  if (project.usesUi) steps.push({ label: "install web UI", cmd: NPM, args: ["install", "-D", `${UI_PKG}@latest`] });
+  if (project.usesUi) steps.push({ label: "install web UI", cmd: NPM, args: ["install", "-D", uiInstallSpec()] });
   return steps;
 }
 
@@ -200,4 +214,13 @@ export async function runUpdate(boards, emit, opts = {}) {
     if (!r.ok) return { ...r, project: board.key };
   }
   return { ok: true, projects: projects.map((p) => p.board.key) };
+}
+
+/**
+ * The argv a self-update restart re-executes: the same script, command, and flags (so the same
+ * mode, --home, --import, and --allow-host), with --no-open so no second browser tab opens.
+ * cwd and env (AI_MAESTRO_WEB_UI_HOME) are passed through by the caller unchanged.
+ */
+export function restartArgv(execArgv, argv) {
+  return [...execArgv, ...argv.slice(1).filter((a) => a !== "--no-open"), "--no-open"];
 }

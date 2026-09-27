@@ -382,13 +382,29 @@ export function total(c) {
 /**
  * Whether "Add board" can write the package registry, and what to tell the user otherwise.
  * @param {{mode?: string, generated?: boolean, path?: string | null} | null} cfg
- * @returns {{canWrite: boolean, reason: "generated" | "readonly" | null}}
+ * @returns {{canWrite: boolean, reason: "generated" | "readonly" | "project" | null}}
  */
 export function addBoardMode(cfg) {
   if (!cfg) return { canWrite: false, reason: null };
+  if (cfg.mode === "project") return { canWrite: false, reason: "project" };
   if (cfg.generated) return { canWrite: false, reason: "generated" };
   if (cfg.mode !== "registry" || !cfg.path || cfg.readonly) return { canWrite: false, reason: "readonly" };
   return { canWrite: true, reason: null };
+}
+
+/**
+ * The header's mode badge. Project mode is one project with no project management; the dashboard
+ * keeps its project list in its own folder (shown on hover); import is a read-only list.
+ * @param {{mode?: string, home?: string | null, path?: string | null} | null} cfg
+ * @returns {{kind: "project" | "dashboard" | "import", label: string, title: string} | null}
+ */
+export function modeBadge(cfg) {
+  if (!cfg?.mode) return null;
+  if (cfg.mode === "project") {
+    return { kind: "project", label: "Project", title: `Project mode: only this project (${cfg.path ?? ""}). Start the dashboard to manage projects.` };
+  }
+  if (cfg.mode === "import") return { kind: "import", label: "Import", title: "Imported project list (read-only)" };
+  return { kind: "dashboard", label: "Dashboard", title: `Dashboard folder: ${cfg.home ?? cfg.path ?? ""}` };
 }
 
 /** A projects.json registry entry suggestion for a new board. @param {{id: string, name: string, path: string}} e */

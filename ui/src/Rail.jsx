@@ -63,7 +63,7 @@ export function ProjectTokens({ id, name, active, version = 0, enabled = true, l
 }
 
 /**
- * @param {{rail: any[] | null, error: string | null, active: string | null, operationsActive?: boolean, mode?: string,
+ * @param {{rail: any[] | null, error: string | null, active: string | null, operationsActive?: boolean, mode?: {kind: string, label: string, title: string} | null,
  *   theme?: string, onTheme?: () => void, collapsed?: boolean, onCollapse?: () => void,
  *   onOperations: () => void, onOpen: (id: string) => void, onAdd: () => void, onRefresh: () => void,
  *   onProjects?: () => void, projectsActive?: boolean}} props
@@ -81,7 +81,7 @@ function useUtcDay() {
 /** The desktop rail hides token cards when collapsed; the phone rail always shows them. */
 const desktopWidth = () => typeof window !== "undefined" && !!window.matchMedia?.("(min-width: 761px)").matches;
 
-export function Rail({ rail, error, active, operationsActive, mode, theme = "system", onTheme, collapsed = false, onCollapse, onOperations, onOpen, onAdd, onRefresh, onProjects, projectsActive = false, onCheckUpdates }) {
+export function Rail({ rail, error, active, operationsActive, single = false, mode, theme = "system", onTheme, collapsed = false, onCollapse, onOperations, onOpen, onAdd, onRefresh, onProjects, projectsActive = false, onCheckUpdates }) {
   const [refreshes, setRefreshes] = useState(0);
   const day = useUtcDay();
   const tokensVersion = `${refreshes}:${day}`;
@@ -98,7 +98,7 @@ export function Rail({ rail, error, active, operationsActive, mode, theme = "sys
           </button>
         )}
         <span className="rail-title">Maestro</span>
-        {mode && <span className="mode-tag" title={mode === "import" ? "Imported project list (read-only)" : "Config mode"}>{mode}</span>}
+        {mode && <span className={`mode-tag mode-${mode.kind}`} title={mode.title} aria-label={`${mode.label} mode. ${mode.title}`}>{mode.label}</span>}
         {onTheme && (
           <button type="button" className="icon-btn theme-btn" aria-label={`Theme: ${theme}. Switch theme`} title={`Theme: ${theme}`} onClick={onTheme}>
             {Icon[theme] ?? Icon.system}
@@ -106,9 +106,11 @@ export function Rail({ rail, error, active, operationsActive, mode, theme = "sys
         )}
         <button type="button" className="icon-btn" aria-label="Refresh boards" onClick={refresh}>{Icon.refresh}</button>
       </div>
-      <button type="button" className={`rail-operations ${operationsActive ? "is-active" : ""}`} onClick={onOperations}
-        aria-current={operationsActive ? "page" : undefined} title="All projects">{Icon.pulse} <span className="rail-label">All projects</span></button>
-      <div className="rail-section" aria-hidden="true">Projects</div>
+      {!single && <>
+        <button type="button" className={`rail-operations ${operationsActive ? "is-active" : ""}`} onClick={onOperations}
+          aria-current={operationsActive ? "page" : undefined} title="All projects">{Icon.pulse} <span className="rail-label">All projects</span></button>
+        <div className="rail-section" aria-hidden="true">Projects</div>
+      </>}
       {error && <p className="rail-error" role="alert">Could not list boards: {error}</p>}
       {!rail && !error && <p className="rail-loading loading">Loading…<span className="spinner" aria-hidden="true" /></p>}
       <ul className="rail-list">
@@ -136,7 +138,7 @@ export function Rail({ rail, error, active, operationsActive, mode, theme = "sys
           </li>
         ))}
       </ul>
-      <button type="button" className="rail-add" onClick={onAdd} title="Add board">{Icon.plus} <span className="rail-label">Add board</span></button>
+      {onAdd && <button type="button" className="rail-add" onClick={onAdd} title="Add board">{Icon.plus} <span className="rail-label">Add board</span></button>}
       {onProjects && (
         <button type="button" className={`rail-manage ${projectsActive ? "is-active" : ""}`} onClick={onProjects} title="Manage projects"
           aria-current={projectsActive ? "page" : undefined}>{Icon.list} <span className="rail-label">Manage projects</span></button>

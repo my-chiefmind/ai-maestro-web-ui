@@ -10,7 +10,7 @@ import {
   getSpecVersion, listSpecs, readBoard, readBoardEligibility, readPlan, readSpec, setTicketStatus, writeSpec,
   DIMENSIONS, PORTFOLIO_DIMENSIONS, readPortfolioUsage, readUsage, usageCsv,
 } from "./maestro.mjs";
-import { activeBoards, addBoard, assertBoardUsable, removeBoard, setBoardStatus } from "./config.mjs";
+import { activeBoards, addBoard, assertBoardUsable, assertCanManageProjects, removeBoard, setBoardStatus } from "./config.mjs";
 import { suggestDirs } from "./dirSuggest.mjs";
 import { latestVersions, runUpdate, updateStatus } from "./selfUpdate.mjs";
 import { docsDir, listDocs, listReports, listRoster, readDoc, readReport, reportsDir, sendAsset } from "./capsuleFiles.mjs";
@@ -433,7 +433,7 @@ const ROUTES = [
   ["GET", /^\/api\/config$/, ({ res, config, generated }) => {
     send(res, 200, {
       generated: generated === true,
-      mode: config.mode, readonly: config.readonly, path: config.path, version: config.version,
+      mode: config.mode, readonly: config.readonly, path: config.path, home: config.home ?? null, version: config.version,
       port: config.port, allowedHosts: config.allowedHosts,
       boards: config.boards.map((b) => ({ id: b.id, key: b.key, name: b.name, label: b.label, path: b.path, status: b.status })),
     });
@@ -469,13 +469,15 @@ const ROUTES = [
     } finally { updateRunning = false; }
   }],
 
-  ["POST", /^\/api\/fs\/dirs$/, async ({ req, res }) => {
+  ["POST", /^\/api\/fs\/dirs$/, async ({ req, res, config }) => {
+    assertCanManageProjects(config); // folder suggestions only serve the dashboard's Add board
     const body = onlyKeys(await readJson(req), ["prefix"], "body");
     if (typeof body.prefix !== "string") throw new HttpError(400, { error: "prefix must be a string." });
     send(res, 200, suggestDirs(body.prefix));
   }],
 
   ["POST", /^\/api\/config\/boards$/, async ({ req, res, config }) => {
+    assertCanManageProjects(config);
     const body = onlyKeys(await readJson(req), ["key", "label", "path", "expectVersion"], "body");
     if (typeof body.path !== "string" || !body.path.trim()) throw new HttpError(400, { error: "path is required." });
     if (typeof body.expectVersion !== "string" || !body.expectVersion) throw new HttpError(400, { error: "expectVersion is required." });
@@ -483,6 +485,7 @@ const ROUTES = [
   }],
 
   ["PATCH", /^\/api\/config\/boards\/([^/]+)$/, async ({ req, res, params, config }) => {
+    assertCanManageProjects(config);
     const body = onlyKeys(await readJson(req), ["status", "expectVersion"], "body");
     if (body.status !== "active" && body.status !== "parked") throw new HttpError(400, { error: "status must be active or parked." });
     if (typeof body.expectVersion !== "string" || !body.expectVersion) throw new HttpError(400, { error: "expectVersion is required." });
@@ -490,6 +493,7 @@ const ROUTES = [
   }],
 
   ["DELETE", /^\/api\/config\/boards\/([^/]+)$/, async ({ req, res, params, config }) => {
+    assertCanManageProjects(config);
     const body = onlyKeys(await readJson(req), ["expectVersion"], "body");
     if (typeof body.expectVersion !== "string" || !body.expectVersion) throw new HttpError(400, { error: "expectVersion is required." });
     send(res, 200, removeBoard(config, params[0], body.expectVersion));

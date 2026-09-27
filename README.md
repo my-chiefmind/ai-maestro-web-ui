@@ -30,7 +30,7 @@ flowchart LR
     B["project-b/maestro"]
     C["project-c/maestro"]
   end
-  R["maestro/web-ui.json<br/>list of registered projects"]
+  R["dashboard folder<br/>ai-maestro-dashboard.json"]
   M["AI Maestro API<br/>@mychiefmind/ai-maestro"]
   S["Dashboard server<br/>127.0.0.1:3021"]
   U["Your browser"]
@@ -40,25 +40,46 @@ flowchart LR
   S <-->|"http, loopback only"| U
 ```
 
-1. You run `npx ai-maestro-web-ui` inside any folder.
-2. The server reads the list of registered projects from `maestro/web-ui.json` in that folder.
-   With no list yet, it starts empty.
+1. You run `npx ai-maestro-web-ui` inside a project (project mode: just that project) or inside a
+   dashboard folder (dashboard mode: many projects).
+2. In dashboard mode the server reads the project list from that folder's
+   `ai-maestro-dashboard.json`. Project mode reads no list at all.
 3. For each project it asks AI Maestro for the board, plan, reports and usage.
 4. Your browser shows it. When you edit a ticket or plan, the change goes back through AI
    Maestro, which checks the file has not changed since you loaded it before saving.
 
 ## Quick start
 
+There are two ways to run it.
+
+**Single project: run inside the project.**
+
 ```sh
-npm install --save-dev @mychiefmind/ai-maestro @mychiefmind/ai-maestro-web-ui
+cd ~/source/my-app            # a project with ./maestro
 npx ai-maestro-web-ui
 ```
 
-1. **Start it.** The dashboard opens in your browser at `http://127.0.0.1:3021`. If that port is
-   busy it picks the next free one and tells you which.
-2. **Add a project.** Click **Add board**, start typing the project folder (for example
-   `~/source/my-app`) and pick it from the suggestions. The name and id are filled in for you.
-3. **Work.** Pick a project on the left, or **All projects** to see everything together.
+Only that project is shown (the header says **Project**). There is no project management here:
+no Add board, no Projects tab, and nothing is written besides the project's own board edits.
+
+**Dashboard: make a folder, init, add projects.**
+
+```sh
+mkdir ~/my-dashboard && cd ~/my-dashboard
+npm init -y && npm i @mychiefmind/ai-maestro @mychiefmind/ai-maestro-web-ui   # or just use npx
+npx ai-maestro-web-ui dashboard init        # creates ./ai-maestro-dashboard.json
+npx ai-maestro-web-ui add ~/source/my-app   # or click Add board in the UI
+npx ai-maestro-web-ui
+```
+
+The header says **Dashboard** (hover it for the folder). The dashboard file only lists project
+paths; each project's tickets, specs and usage stay in that project's own `maestro` folder. A
+dashboard must not live inside a project, so `dashboard init` refuses a folder with `./maestro`.
+From anywhere else, `npx ai-maestro-web-ui dashboard --home ~/my-dashboard` starts it. Starting
+in a folder that is neither prints how to make it a dashboard and creates nothing.
+
+Either way the page opens at `http://127.0.0.1:3021`; if that port is busy it picks the next free
+one and tells you which.
 
 ## Tour
 
@@ -86,11 +107,13 @@ icons, and on a phone it becomes a strip across the top.
 ## Command line
 
 ```sh
-npx ai-maestro-web-ui                 # start (same as: start)
-npx ai-maestro-web-ui add <path>      # register a project folder
-npx ai-maestro-web-ui list            # show registered projects
-npx ai-maestro-web-ui remove <key>    # unregister; project files are not touched
-npx ai-maestro-web-ui --no-open       # start without opening the browser
+npx ai-maestro-web-ui                   # start: project mode in a project, dashboard in a dashboard folder
+npx ai-maestro-web-ui dashboard init    # make this (non-project) folder a dashboard
+npx ai-maestro-web-ui dashboard --home <dir>  # start the dashboard kept in <dir>
+npx ai-maestro-web-ui add <path>        # dashboard: register a project folder (--home <dir> optional)
+npx ai-maestro-web-ui list              # dashboard: show registered projects
+npx ai-maestro-web-ui remove <key>      # dashboard: unregister; project files are not touched
+npx ai-maestro-web-ui --no-open         # start without opening the browser
 ```
 
 ## Requirements
@@ -105,15 +128,16 @@ npm install --save-dev @mychiefmind/ai-maestro @mychiefmind/ai-maestro-web-ui
 npx ai-maestro-web-ui
 ```
 
-With no registry file but a `./maestro` capsule, the project you start in becomes the first
-registered project: the registry file is created with that one entry, so **Add board** works
-straight away. If there is no `./maestro` either, it starts with no projects; add one from **Add board** in the UI or with `add`
-below, and the registry file is created on that first add. It binds `127.0.0.1:3021`; if that port
+The start folder picks the mode: a folder with `ai-maestro-dashboard.json` (or `--home <dir>`)
+is a dashboard; otherwise a folder with `./maestro` is project mode; anything else prints guidance
+and exits. Project mode never reads or writes a project list, and the project-management routes
+(`/api/config/boards…`, `/api/fs/dirs`) answer `403` with "Project mode: start the dashboard to
+manage projects". It binds `127.0.0.1:3021`; if that port
 is busy it tries the next ports up to 3041, prints which one it used, and fails only if all are busy. Run from a
 terminal, `start` opens the page in your browser; pass `--no-open` (or set `CI`) to skip that.
 
-Register projects from the host project's root. The path may name either the project root or its
-`maestro` capsule:
+Register projects from the dashboard folder (or pass `--home <dir>`). The path may name either the
+project root or its `maestro` capsule. In a project folder these commands refuse:
 
 ```sh
 npx ai-maestro-web-ui add ~/source/my-app
@@ -123,7 +147,7 @@ npx ai-maestro-web-ui remove a-project
 npx ai-maestro-web-ui              # identical to: npx ai-maestro-web-ui start
 ```
 
-The writable registry is `<host cwd>/maestro/web-ui.json` and has one deliberately small format:
+The dashboard file is `<dashboard folder>/ai-maestro-dashboard.json` and has one deliberately small format:
 
 ```json
 [
@@ -134,7 +158,8 @@ The writable registry is `<host cwd>/maestro/web-ui.json` and has one deliberate
 Paths are stored as canonical absolute capsule paths. Duplicate keys and paths are refused. Add
 and remove take a registry lock, re-read under that lock, and atomically replace the registry;
 the HTTP form additionally uses a content version and returns `409` on a stale edit. Removing a
-key only changes this registry—it never deletes or edits project files.
+key only changes this registry—it never deletes or edits project files. Deleting a project folder
+never touches the dashboard file either; that project just shows as unavailable until removed.
 
 An entry may also carry `"status": "active" | "parked"` (absent means active; older files stay
 valid and are not rewritten). A parked project stays in the registry and in `/api/config`, but it
@@ -145,7 +170,7 @@ stale version, `400` on any other status); unparking removes the field again.
 
 The **Projects** tab (also "Manage projects" in the rail) lists every registered project—active
 first, then parked—with its key, path, status, and ticket counts, and lets you add, park, unpark,
-or remove one. A stale edit is reported in the page and the list is refreshed. In import mode the
+or remove one. A stale edit is reported in the page and the list is refreshed. Project mode has no Projects tab. In import mode the
 list is shown read-only.
 
 To reuse an existing ai-maestro portfolio registry (`projects.json`) without copying
@@ -168,7 +193,7 @@ not been replaced by a symlink.
 Registry errors fail closed: malformed input and capsules return `400`, stale versions return
 `409`, duplicate keys/paths return `409`, missing keys return `404`, and lock timeouts return
 `423`. A malformed registry also prevents startup. Recover by fixing or restoring
-`maestro/web-ui.json`; project capsules are independent and are never rewritten by registry
+`ai-maestro-dashboard.json`; project capsules are independent and are never rewritten by registry
 commands.
 
 ## HTTP mutation contract
@@ -237,6 +262,15 @@ npm start -- --no-open
 
 `npm run build` creates `ui/dist`. The published package is designed to include that prebuilt UI,
 so consumers do not need Vite or React at runtime.
+
+`npm run test:upgrade` is a separate, network-using upgrade-safety suite (not part of `npm test`).
+It builds temp projects on old kit versions (0.1.29, the newest 0.5.x, 0.6.0, 0.6.9) with seeded
+boards and customisations, runs the real "Update" path (`POST /api/updates/run`) against them,
+and checks that no user data is lost, the upgraded web UI serves the projects, and injected
+step failures stop the run cleanly. It prints a per-version table. `UPGRADE_KIT_VERSIONS=0.6.9`
+narrows it; `UPGRADE_KEEP=1` keeps the temp dir. It installs this checkout's `npm pack` instead
+of `@latest` through the test-only `AI_MAESTRO_WEB_UI_TEST_UI_SPEC` env override, which is
+honoured only when it is an absolute path to an existing `.tgz` file.
 
 ## License
 

@@ -4,3 +4,4 @@ ui/dist/
 .DS_Store
 *.log
 coverage/
+maestro/board/.usage-hook.log

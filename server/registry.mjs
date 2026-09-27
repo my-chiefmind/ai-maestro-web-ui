@@ -7,7 +7,6 @@ import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import { homedir } from "node:os";
 import { validateCapsule } from "./maestro.mjs";
 
-export const REGISTRY_RELATIVE_PATH = join("maestro", "web-ui.json");
 export const KEY_PATTERN = /^[a-z0-9][a-z0-9_-]*$/;
 const ENTRY_KEYS = new Set(["key", "label", "path", "status"]);
 export const ENTRY_STATUSES = Object.freeze(["active", "parked"]);
@@ -292,4 +291,24 @@ export function readImport(path, opts = {}) {
   };
   load(file);
   return { path: file, boards, version: registryVersion(boards) };
+}
+
+/**
+ * A dashboard is a standalone folder the owner creates: its project list lives in this file at the
+ * folder root. It only references capsule paths; project data stays in each project's capsule.
+ */
+export const DASHBOARD_FILE = "ai-maestro-dashboard.json";
+export const dashboardFilePath = (dir) => join(resolve(dir), DASHBOARD_FILE);
+export const isDashboardDir = (dir) => existsSync(dashboardFilePath(dir));
+
+/** `dashboard init`: create an empty dashboard file. A dashboard must not live inside a project. */
+export function initDashboard(dir) {
+  const root = resolve(dir); const file = dashboardFilePath(root);
+  if (existsSync(join(root, "maestro"))) {
+    fail("EDASHBOARDINPROJECT", `${root} is a project (it has ./maestro); a dashboard must not live inside a project. Make a separate folder for the dashboard.`);
+  }
+  // An existing file is validated (a corrupt one fails with "Invalid JSON…") and never overwritten.
+  if (existsSync(file)) { readRegistry(file); return { path: file, created: false }; }
+  mutateRegistry(file, null, (entries) => entries);
+  return { path: file, created: true };
 }

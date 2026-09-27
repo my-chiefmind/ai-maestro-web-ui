@@ -9,13 +9,14 @@ import { createRequire } from "node:module";
 
 export const PEER_RANGE = "^0.6.7";
 
-function compatible(version) {
+/** True for a kit version inside PEER_RANGE (^0.6.7). */
+export function isCompatibleKit(version) {
   const match = /^(\d+)\.(\d+)\.(\d+)(?:\+.*)?$/.exec(String(version));
   if (!match) return false;
   const major = Number(match[1]);
   const minor = Number(match[2]);
   const patch = Number(match[3]);
-  return major === 0 && minor === 6 && patch >= 6;
+  return major === 0 && minor === 6 && patch >= 7;
 }
 
 const peerPackage = (() => {
@@ -29,10 +30,10 @@ const peerPackage = (() => {
   }
 })();
 
-if (!compatible(peerPackage.version)) {
+if (!isCompatibleKit(peerPackage.version)) {
   throw new Error(
     `ai-maestro-web-ui requires @mychiefmind/ai-maestro ${PEER_RANGE}; found ${peerPackage.version}. ` +
-    "Install a compatible peer before starting the server.",
+    "Update the project's kit first: npm install -D @mychiefmind/ai-maestro@latest && npx ai-maestro update",
   );
 }
 

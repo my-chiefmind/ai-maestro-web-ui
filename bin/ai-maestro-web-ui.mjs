@@ -1,22 +1,28 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
-import { resolve } from "node:path";
-import { createServer } from "../server/index.mjs";
-import { DEFAULT_PORT, loadConfig, loadImportedConfig } from "../server/config.mjs";
-import { REGISTRY_RELATIVE_PATH, addRegistryEntry, readRegistry, removeRegistryEntry } from "../server/registry.mjs";
+
+// The server modules are imported inside the try below: loading them checks the installed
+// @mychiefmind/ai-maestro peer, and a too-old kit must print one clear line, not a stack trace.
+let createServer, DEFAULT_PORT, detectMode, loadConfig, loadDashboardConfig, loadImportedConfig, NO_DASHBOARD_HELP,
+  addRegistryEntry, initDashboard, removeRegistryEntry, restartArgv;
 
 const args = process.argv.slice(2);
-const commands = new Set(["start", "add", "remove", "list"]);
+const commands = new Set(["start", "dashboard", "add", "remove", "list"]);
 const command = commands.has(args[0]) ? args.shift() : "start";
 
 function usage() {
   return `usage:
   ai-maestro-web-ui [start] [--import <registry>] [--allow-host <hostname>] [--no-open]
-  ai-maestro-web-ui add <path> [--key <key>] [--label <label>]
-  ai-maestro-web-ui remove <key>
-  ai-maestro-web-ui list [--import <registry>]
+  ai-maestro-web-ui dashboard init [--home <dir>]
+  ai-maestro-web-ui dashboard [--home <dir>] [--allow-host <hostname>] [--no-open]
+  ai-maestro-web-ui add <path> [--key <key>] [--label <label>] [--home <dir>]
+  ai-maestro-web-ui remove <key> [--home <dir>]
+  ai-maestro-web-ui list [--home <dir>] [--import <registry>]
 
-The writable registry is ./${REGISTRY_RELATIVE_PATH}. With no registry, start uses ./maestro, or starts with no projects.
+Single project: start inside a project (a folder with ./maestro) to see just that project.
+Dashboard: make a folder, run \`dashboard init\` there, then \`add\` projects. The project list
+lives in that folder's ai-maestro-dashboard.json; --home <dir> points at a dashboard folder from
+anywhere. add, remove, and list act on the dashboard in the current folder (or --home).
 start opens the browser when run from a terminal; --no-open or CI=1 skips it.
 `;
 }
@@ -47,42 +53,64 @@ function finishArgs(expected = 0) {
 function printList(config) {
   process.stdout.write(`MODE\t${config.mode}\n`);
   process.stdout.write(`VERSION\t${config.version ?? "-"}\n`);
+  if (config.home) process.stdout.write(`HOME\t${config.home}\n`);
   for (const board of config.boards) process.stdout.write(`${board.key}\t${board.label}\t${board.status}\t${board.path}\n`);
 }
 
 try {
+  ({ createServer } = await import("../server/index.mjs"));
+  ({ DEFAULT_PORT, detectMode, loadConfig, loadDashboardConfig, loadImportedConfig, NO_DASHBOARD_HELP } = await import("../server/config.mjs"));
+  ({ addRegistryEntry, initDashboard, removeRegistryEntry } = await import("../server/registry.mjs"));
+  ({ restartArgv } = await import("../server/selfUpdate.mjs"));
   if (args.includes("--help") || args.includes("-h")) { process.stdout.write(usage()); process.exit(0); }
-  const registryPath = resolve(process.cwd(), REGISTRY_RELATIVE_PATH);
+  const homeFlag = takeFlag("home");
+  if (command === "dashboard" && args[0] === "init") {
+    args.shift(); finishArgs();
+    const { dir } = detectMode({ cwd: process.cwd(), home: homeFlag, dashboard: true });
+    const result = initDashboard(dir);
+    process.stdout.write(result.created ? `Created dashboard ${result.path}\nNext: ai-maestro-web-ui add <project path>, then ai-maestro-web-ui dashboard\n`
+      : `Dashboard already initialized: ${result.path}\n`);
+    process.exit(0);
+  }
+  // add/remove/list act on an existing dashboard (cwd or --home); never on a project folder.
+  const dashboardConfig = () => {
+    const { mode, dir } = detectMode({ cwd: process.cwd(), home: homeFlag });
+    if (mode === "project") throw new Error(`Project mode: ${command} manages a dashboard's project list. Run it in a dashboard folder or pass --home <dashboard folder>.`);
+    if (mode === "none") throw new Error(`No dashboard here: ${NO_DASHBOARD_HELP}`);
+    return loadDashboardConfig(dir);
+  };
 
   if (command === "add") {
     const key = takeFlag("key"); const label = takeFlag("label"); const path = args.shift();
     if (!path) throw new Error("add needs a project or capsule path."); finishArgs();
-    const result = addRegistryEntry(registryPath, { key, label, path }, { cwd: process.cwd() });
+    const result = addRegistryEntry(dashboardConfig().registryPath, { key, label, path }, { cwd: process.cwd() });
     process.stdout.write(`Added ${result.entry.key}\t${result.entry.path}\n`);
     process.exit(0);
   }
 
   if (command === "remove") {
     const key = args.shift(); if (!key) throw new Error("remove needs a project key."); finishArgs();
-    const result = removeRegistryEntry(registryPath, key);
+    const result = removeRegistryEntry(dashboardConfig().registryPath, key);
     process.stdout.write(`Removed ${result.entry.key}; project files were not changed.\n`);
     process.exit(0);
   }
 
   const importPath = takeFlag("import");
   if (command === "list") {
-    finishArgs(); printList(importPath ? loadImportedConfig(importPath) : loadConfig(null)); process.exit(0);
+    finishArgs(); printList(importPath ? loadImportedConfig(importPath) : dashboardConfig()); process.exit(0);
   }
 
   const allowHost = takeFlag("allow-host"); const noOpen = takeSwitch("no-open"); finishArgs();
-  const config = importPath ? loadImportedConfig(importPath) : loadConfig(null);
+  if (importPath && command === "dashboard") throw new Error("--import starts its own read-only view; use it without dashboard.");
+  const config = importPath ? loadImportedConfig(importPath)
+    : loadConfig(null, process.cwd(), { dashboard: command === "dashboard", home: homeFlag });
   if (allowHost) config.allowedHosts.push(allowHost);
   // After a successful self-update: free the port, re-exec this same command (now resolving the
   // freshly installed package), and exit. The page polls /api/config until the new process answers.
   const restart = () => {
     server.closeAllConnections?.();
     server.close(() => {
-      spawn(process.execPath, [...process.execArgv, ...process.argv.slice(1).filter((a) => a !== "--no-open"), "--no-open"],
+      spawn(process.execPath, restartArgv(process.execArgv, process.argv),
         { cwd: process.cwd(), stdio: "inherit", env: { ...process.env, AI_MAESTRO_WEB_UI_RESTART_PORT: String(port) }, detached: true }).unref();
       process.exit(0);
     });
@@ -100,7 +128,8 @@ try {
   server.once("listening", () => {
     const url = `http://127.0.0.1:${port}`;
     if (port !== DEFAULT_PORT) process.stdout.write(`ai-maestro-web-ui: 127.0.0.1:${DEFAULT_PORT} is busy; using ${port}.\n`);
-    process.stdout.write(`ai-maestro-web-ui listening on ${url} — ${config.mode} mode\n`);
+    const label = config.mode === "registry" ? `dashboard mode (${config.home ?? config.path})` : `${config.mode} mode`;
+    process.stdout.write(`ai-maestro-web-ui listening on ${url} — ${label}\n`);
     if (!noOpen && !process.env.CI && process.stdout.isTTY) openBrowser(url);
   });
   server.listen(port, "127.0.0.1");
