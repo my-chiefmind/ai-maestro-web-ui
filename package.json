@@ -1,6 +1,6 @@
 {
   "name": "@mychiefmind/ai-maestro-web-ui",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Local multi-project web UI for @mychiefmind/ai-maestro capsules.",
   "keywords": [
     "ai-maestro",

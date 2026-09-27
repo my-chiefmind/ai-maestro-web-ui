@@ -23,22 +23,7 @@ folders.
 
 ## How it works
 
-```mermaid
-flowchart LR
-  subgraph Projects["Your projects on disk"]
-    A["project-a/maestro<br/>board · plan · specs · reports"]
-    B["project-b/maestro"]
-    C["project-c/maestro"]
-  end
-  R["dashboard folder<br/>ai-maestro-dashboard.json"]
-  M["AI Maestro API<br/>@mychiefmind/ai-maestro"]
-  S["Dashboard server<br/>127.0.0.1:3021"]
-  U["Your browser"]
-  R --> S
-  A & B & C <-->|"read / locked write"| M
-  M <--> S
-  S <-->|"http, loopback only"| U
-```
+![How it works: projects on disk connect through the AI Maestro API to the dashboard server, which serves your browser over loopback-only HTTP](https://raw.githubusercontent.com/my-chiefmind/ai-maestro-web-ui/main/assets/architecture.svg)
 
 1. You run `npx ai-maestro-web-ui` inside a project (project mode: just that project) or inside a
    dashboard folder (dashboard mode: many projects).
