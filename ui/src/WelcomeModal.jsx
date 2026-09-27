@@ -1,10 +1,11 @@
 /**
- * WelcomeModal — shown once, on the first visit: the onboarding prompt to paste into an agent,
+ * WelcomeModal — shown once, on the first visit. Dashboard mode: the Cockpit Maestro guide (T-028)
+ * with the planning prompt folded away. Project mode: the onboarding prompt to paste into an agent,
  * with a Copy button. "Don't show again" (or "Got it") is remembered in localStorage; the same
  * content lives on the Help tab. Storage failures (private mode) never break rendering.
  */
 import { useEffect, useId, useRef, useState } from "react";
-import { ONBOARDING_PROMPT, CopyButton } from "./HelpPage.jsx";
+import { ONBOARDING_PROMPT, CockpitGuide, CopyButton } from "./HelpPage.jsx";
 import "./help.css";
 
 export const WELCOME_KEY = "mwu-welcome-v1";
@@ -52,7 +53,7 @@ export function WelcomeModal({ onClose, projectMode = false }) {
   const onKeyDown = (e) => {
     if (e.key === "Escape") { e.stopPropagation(); close(); return; }
     if (e.key !== "Tab" || !dialogRef.current) return;
-    const items = [...dialogRef.current.querySelectorAll("button, input, [href], [tabindex]:not([tabindex='-1'])")];
+    const items = [...dialogRef.current.querySelectorAll("button, input, summary, [href], [tabindex]:not([tabindex='-1'])")];
     if (!items.length) return;
     const first = /** @type {HTMLElement} */ (items[0]);
     const last = /** @type {HTMLElement} */ (items[items.length - 1]);
@@ -66,19 +67,31 @@ export function WelcomeModal({ onClose, projectMode = false }) {
       <div className="welcome" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descId}
         ref={dialogRef} onKeyDown={onKeyDown}>
         <header className="welcome-head">
-          <p className="help-eyebrow">Welcome to the Maestro dashboard</p>
-          <h2 id={titleId} tabIndex={-1}>Plan your first project</h2>
+          <p className="help-eyebrow">{projectMode ? "Cockpit Maestro" : "Getting started"}</p>
+          <h2 id={titleId} tabIndex={-1}>{projectMode ? "Plan your first project" : "Welcome to Cockpit Maestro"}</h2>
         </header>
         <div className="welcome-body">
-          <p id={descId}>{projectMode
-            ? <>Paste this prompt into Claude Code (or any agentic tool) at this project's root. The agent writes the plan
-              and board; you review them here.</>
-            : <>Add a project with <strong>Add board</strong>, then paste this prompt into Claude Code (or any
-              agentic tool) at that project's root. The agent writes the plan and board; you review them here.</>}</p>
-          <div className="help-prompt">
-            <pre>{ONBOARDING_PROMPT}</pre>
-            <CopyButton text={ONBOARDING_PROMPT} label="Copy prompt" />
-          </div>
+          {projectMode
+            ? <>
+              <p id={descId}>Paste this prompt into Claude Code (or any agentic tool) at this project's root. The agent writes the plan
+                and board; you review them here.</p>
+              <div className="help-prompt">
+                <pre>{ONBOARDING_PROMPT}</pre>
+                <CopyButton text={ONBOARDING_PROMPT} label="Copy prompt" />
+              </div>
+            </>
+            : <>
+              <div id={descId}><CockpitGuide /></div>
+              <details className="cockpit-custom">
+                <summary>Plan a project you added</summary>
+                <p>Paste this prompt into Claude Code (or any agentic tool) at that project's root. The agent writes the plan
+                  and board; you review them here.</p>
+                <div className="help-prompt">
+                  <pre>{ONBOARDING_PROMPT}</pre>
+                  <CopyButton text={ONBOARDING_PROMPT} label="Copy prompt" />
+                </div>
+              </details>
+            </>}
           <p className="muted">You can find this again on the <strong>Help</strong> tab.</p>
         </div>
         <footer className="welcome-foot">

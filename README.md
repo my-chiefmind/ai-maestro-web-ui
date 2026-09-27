@@ -1,261 +1,45 @@
-<p align="center"><img src="https://raw.githubusercontent.com/my-chiefmind/ai-maestro-web-ui/main/ui/public/logo.png" alt="Maestro" width="160" /></p>
+<p align="center"><img src="https://raw.githubusercontent.com/my-chiefmind/ai-maestro-web-ui/main/ui/public/logo.png" alt="Cockpit Maestro" width="160" /></p>
 
-# Maestro dashboard
+# Cockpit Maestro
 
-**`@mychiefmind/ai-maestro-web-ui`** is a local web dashboard for your
-[AI Maestro](https://www.npmjs.com/package/@mychiefmind/ai-maestro) projects. One command opens
-every project's board, plan, reports and token usage in your browser, side by side.
+**Cockpit Maestro** (`@mychiefmind/ai-maestro-web-ui`) is one place, on your own machine, to see
+and edit the boards, plans, reports and token usage of all your
+[AI Maestro](https://www.npmjs.com/package/@mychiefmind/ai-maestro) projects.
 
 ![Board view of one project, dark theme](https://raw.githubusercontent.com/my-chiefmind/ai-maestro-web-ui/main/assets/board.png)
 
-## What it is
-
-AI Maestro keeps each project's work in a `maestro/` folder inside that project: the board of
-tickets, the plan, specs, reports and usage records. This dashboard is a window onto those
-folders.
-
-- **It runs only on your machine.** The server listens on `127.0.0.1` and nothing leaves it.
-- **Your project data stays with AI Maestro.** Boards, plans and specs are read and written
-  through AI Maestro's own API, with locking, so the dashboard and your agents can work on the
-  same board safely.
-- **It shows many projects at once.** Register as many projects as you like by path. Each one
-  keeps its own `maestro/` folder.
-
-## How it works
-
-![How it works: projects on disk connect through the AI Maestro API to the dashboard server, which serves your browser over loopback-only HTTP](https://raw.githubusercontent.com/my-chiefmind/ai-maestro-web-ui/main/assets/architecture.svg)
-
-1. You run `npx ai-maestro-web-ui` inside a project (project mode: just that project) or inside a
-   dashboard folder (dashboard mode: many projects).
-2. In dashboard mode the server reads the project list from that folder's
-   `ai-maestro-dashboard.json`. Project mode reads no list at all.
-3. For each project it asks AI Maestro for the board, plan, reports and usage.
-4. Your browser shows it. When you edit a ticket or plan, the change goes back through AI
-   Maestro, which checks the file has not changed since you loaded it before saving.
-
-## Quick start
-
-There are two ways to run it.
-
-**Single project: run inside the project.**
-
-```sh
-cd ~/source/my-app            # a project with ./maestro
-npx ai-maestro-web-ui
-```
-
-Only that project is shown (the header says **Project**). There is no project management here:
-no Add board, no Projects tab, and nothing is written besides the project's own board edits.
-
-**Dashboard: make a folder, init, add projects.**
-
-```sh
-mkdir ~/my-dashboard && cd ~/my-dashboard
-npm init -y && npm i @mychiefmind/ai-maestro @mychiefmind/ai-maestro-web-ui   # or just use npx
-npx ai-maestro-web-ui dashboard init        # creates ./ai-maestro-dashboard.json
-npx ai-maestro-web-ui add ~/source/my-app   # or click Add board in the UI
-npx ai-maestro-web-ui
-```
-
-The header says **Dashboard** (hover it for the folder). The dashboard file only lists project
-paths; each project's tickets, specs and usage stay in that project's own `maestro` folder. A
-dashboard must not live inside a project, so `dashboard init` refuses a folder with `./maestro`.
-From anywhere else, `npx ai-maestro-web-ui dashboard --home ~/my-dashboard` starts it. Starting
-in a folder that is neither prints how to make it a dashboard and creates nothing.
-
-Either way the page opens at `http://127.0.0.1:3021`; if that port is busy it picks the next free
-one and tells you which.
-
-## Tour
-
-| View | What you use it for |
-| --- | --- |
-| **Board** | Tickets by status. Open one to edit it, change its status, archive or drop it. |
-| **All projects** | One operations view across every project: in flight, eligible, blocked, in review. |
-| **Usage** | Tokens used per project, ticket, model and provider. |
-| **Reports** / **Documentation** | Read a project's reports and docs, rendered from Markdown or HTML. |
-| **Project plan** | Goals, scope and requirements, and how much of the plan is filled in. |
-| **Roster** | The agents and skills each project uses. |
-| **Help** | Getting started, the planning prompt and every command, with copy buttons. |
-
-![All projects: one operations view across every registered project](https://raw.githubusercontent.com/my-chiefmind/ai-maestro-web-ui/main/assets/portfolio.png)
-
-![Reports rendered in the light theme](https://raw.githubusercontent.com/my-chiefmind/ai-maestro-web-ui/main/assets/reports.png)
-
-![Help tab: getting started and command reference](https://raw.githubusercontent.com/my-chiefmind/ai-maestro-web-ui/main/assets/help.png)
-
-<p align="center"><img src="https://raw.githubusercontent.com/my-chiefmind/ai-maestro-web-ui/main/assets/mobile.png" alt="Board on a phone" width="260" /></p>
-
-Light and dark themes follow your system; switch with the moon icon. The left menu collapses to
-icons, and on a phone it becomes a strip across the top.
-
-## Command line
-
-```sh
-npx ai-maestro-web-ui                   # start: project mode in a project, dashboard in a dashboard folder
-npx ai-maestro-web-ui dashboard init    # make this (non-project) folder a dashboard
-npx ai-maestro-web-ui dashboard --home <dir>  # start the dashboard kept in <dir>
-npx ai-maestro-web-ui add <path>        # dashboard: register a project folder (--home <dir> optional)
-npx ai-maestro-web-ui list              # dashboard: show registered projects
-npx ai-maestro-web-ui remove <key>      # dashboard: unregister; project files are not touched
-npx ai-maestro-web-ui --no-open         # start without opening the browser
-```
-
-## Requirements
-
-- Node.js 20.19.x, or Node.js 22.12 or newer
-- `@mychiefmind/ai-maestro` `>=0.6.7 <0.7` installed by the consuming project
-
 ## Install and run
 
-```sh
-npm install --save-dev @mychiefmind/ai-maestro @mychiefmind/ai-maestro-web-ui
-npx ai-maestro-web-ui
-```
-
-The start folder picks the mode: a folder with `ai-maestro-dashboard.json` (or `--home <dir>`)
-is a dashboard; otherwise a folder with `./maestro` is project mode; anything else prints guidance
-and exits. Project mode never reads or writes a project list, and the project-management routes
-(`/api/config/boards…`, `/api/fs/dirs`) answer `403` with "Project mode: start the dashboard to
-manage projects". It binds `127.0.0.1:3021`; if that port
-is busy it tries the next ports up to 3041, prints which one it used, and fails only if all are busy. Run from a
-terminal, `start` opens the page in your browser; pass `--no-open` (or set `CI`) to skip that.
-
-Register projects from the dashboard folder (or pass `--home <dir>`). The path may name either the
-project root or its `maestro` capsule. In a project folder these commands refuse:
+In any empty folder:
 
 ```sh
-npx ai-maestro-web-ui add ~/source/my-app
-npx ai-maestro-web-ui add "~/source/a project" --key a-project --label "A Project"
-npx ai-maestro-web-ui list
-npx ai-maestro-web-ui remove a-project
-npx ai-maestro-web-ui              # identical to: npx ai-maestro-web-ui start
+npx @mychiefmind/ai-maestro-web-ui
 ```
 
-The dashboard file is `<dashboard folder>/ai-maestro-dashboard.json` and has one deliberately small format:
+It sets the folder up as your cockpit, installs it there once, and opens
+`http://cockpit.localhost:3021` in your browser.
 
-```json
-[
-  { "key": "my-app", "label": "My App", "path": "/Users/me/source/my-app/maestro" }
-]
-```
-
-Paths are stored as canonical absolute capsule paths. Duplicate keys and paths are refused. Add
-and remove take a registry lock, re-read under that lock, and atomically replace the registry;
-the HTTP form additionally uses a content version and returns `409` on a stale edit. Removing a
-key only changes this registry—it never deletes or edits project files. Deleting a project folder
-never touches the dashboard file either; that project just shows as unavailable until removed.
-
-An entry may also carry `"status": "active" | "parked"` (absent means active; older files stay
-valid and are not rewritten). A parked project stays in the registry and in `/api/config`, but it
-leaves the rail, `/api/boards`, `/api/operations`, and every portfolio aggregate, and addressing it
-returns `404`. Park or unpark with `PATCH /api/config/boards/:key` and
-`{ "status": "parked", "expectVersion": "…" }` (lock, compare-and-swap, atomic write; `409` on a
-stale version, `400` on any other status); unparking removes the field again.
-
-The **Projects** tab (also "Manage projects" in the rail) lists every registered project—active
-first, then parked—with its key, path, status, and ticket counts, and lets you add, park, unpark,
-or remove one. A stale edit is reported in the page and the list is refreshed. Project mode has no Projects tab. In import mode the
-list is shown read-only.
-
-To reuse an existing ai-maestro portfolio registry (`projects.json`) without copying
-it, import it explicitly:
+## Run again
 
 ```sh
-npx ai-maestro-web-ui --import ./projects.json
-npx ai-maestro-web-ui list --import ./projects.json
+npm start
 ```
 
-Imported registries are read-only. Both `active` and `parked` status are retained; a parked entry
-without a capsule remains visible as unavailable. Nested ai-maestro registries are supported.
+## Add a project
 
-The server binds only to `127.0.0.1`. Requests are checked against the loopback/default host
-allowlist; add `--allow-host cockpit.loc` when a trusted local reverse proxy uses that hostname.
-Every API request selects a project by registry key only—request input is never interpreted as a
-filesystem path. Before every project use, the server rechecks that its canonical directory has
-not been replaced by a symlink.
+- Click **Add board** and pick the project folder (the one that contains `./maestro`).
+- Or, inside an AI Maestro project, run the same `npx @mychiefmind/ai-maestro-web-ui` command to see just that project.
 
-Registry errors fail closed: malformed input and capsules return `400`, stale versions return
-`409`, duplicate keys/paths return `409`, missing keys return `404`, and lock timeouts return
-`423`. A malformed registry also prevents startup. Recover by fixing or restoring
-`ai-maestro-dashboard.json`; project capsules are independent and are never rewritten by registry
-commands.
+## Documentation
 
-## HTTP mutation contract
-
-All project routes select a configured project by key; none accepts a filesystem path. Board,
-plan, and spec writes are targeted operations with compare-and-swap versions. Read the resource,
-send its returned `version` as `expectVersion`, and handle `409` by rebasing onto the fresh
-resource included in the response. Creating a spec uses `sha256:absent` as its expected version.
-There is no whole-board, whole-plan, or arbitrary-file PUT endpoint.
-
-The plan endpoint accepts only the public targeted operations exposed by ai-maestro: goal and
-scope changes, plan-item and gap changes, and initiative changes. Ticket archival and dropping
-are separate operations so `data.json` and `archive.json` move together under the board lock.
-Spec discovery delegates to ai-maestro's safe, non-recursive `listSpecs` API and returns only
-direct regular Markdown specs with their content versions; unsafe names and symlinks are never
-followed.
-Invalid input returns `400`, missing resources `404`, stale versions `409`, and a held writer
-lock `423` with safe holder details.
-
-## Read-only project data
-
-Three cockpit areas have no public ai-maestro API yet, so the server lists them itself, read-only,
-under the registered project: the roster (`/api/boards/<key>/roster`) scans the project's
-`.claude/agents/*.md`, `.claude/skills/*/SKILL.md`, `.codex/agents/*.toml` and
-`.agents/skills/*/SKILL.md`, merging same-named entries and tagging each with its targets; reports
-(`/api/boards/<key>/reports[/<id>]`) and docs (`/api/boards/<key>/docs[/<id>]`) list and return
-`.md` and `.html` files from `board/reports` and the capsule's `docs`. `/api/roster`,
-`/api/reports` and `/api/docs` aggregate every readable project and isolate failures per project.
-Entry ids are strict single segments, symlinked entries are skipped and refused, home-level
-`~/.claude`, `~/.codex` and `~/.agents` are never scanned, and no response carries a filesystem path.
-
-## Token usage
-
-Usage reads come from ai-maestro's public aggregate API—this package never reads provider
-credentials or calls billing services. `GET /api/boards/:key/usage`
-returns one project's orchestration and application usage for every provider;
-`GET /api/usage` returns the portfolio merge and lists unreadable projects separately. Both
-responses include registry identity, freshness, token classes, attribution coverage,
-provenance, unassigned usage, and the canonical upstream report. CSV uses the same figures:
-
-```text
-GET /api/boards/my-project/usage?format=csv&view=provider
-GET /api/usage?format=csv&view=project
-```
-
-CSV views are `tickets`, the published single-project dimensions (`model`, `agent`, `runtime`,
-`provider`, `stage`, `date`), and—in portfolio scope—`project` and `provenance`. Unknown query
-parameters, formats, and views are rejected rather than ignored.
-
-The Usage tab shows the portfolio (All projects) or the selected project. It shows token counts only—no prices or costs. Headline counters always show
-the canonical complete-report totals; provider, model, runtime, provenance, project, ticket, date,
-and token-class controls are visibility filters and do not relabel filtered figures as new totals.
-The source guide keeps orchestration (agent work on tickets) separate from application calls,
-whatever the provider. Filter state uses only `u_*` URL parameters, while JSON
-exports download without storing report data in browser storage or history. CSV is served by the endpoints above for scripts; the UI client never sends query strings.
-
-## Development
-
-```sh
-npm ci
-npx playwright install chromium
-npm run build
-npm test
-npm start -- --no-open
-```
-
-`npm run build` creates `ui/dist`. The published package is designed to include that prebuilt UI,
-so consumers do not need Vite or React at runtime.
-
-`npm run test:upgrade` is a separate, network-using upgrade-safety suite (not part of `npm test`).
-It builds temp projects on old kit versions (0.1.29, the newest 0.5.x, 0.6.0, 0.6.9) with seeded
-boards and customisations, runs the real "Update" path (`POST /api/updates/run`) against them,
-and checks that no user data is lost, the upgraded web UI serves the projects, and injected
-step failures stop the run cleanly. It prints a per-version table. `UPGRADE_KIT_VERSIONS=0.6.9`
-narrows it; `UPGRADE_KEEP=1` keeps the temp dir. It installs this checkout's `npm pack` instead
-of `@latest` through the test-only `AI_MAESTRO_WEB_UI_TEST_UI_SPEC` env override, which is
-honoured only when it is an absolute path to an existing `.tgz` file.
+- [How it works](https://github.com/my-chiefmind/ai-maestro-web-ui/blob/main/docs/guide/how-it-works.md): the architecture, the address, and custom host names
+- [Tour](https://github.com/my-chiefmind/ai-maestro-web-ui/blob/main/docs/guide/tour.md): every view, with screenshots
+- [Command line](https://github.com/my-chiefmind/ai-maestro-web-ui/blob/main/docs/guide/command-line.md): every command and flag
+- [Requirements](https://github.com/my-chiefmind/ai-maestro-web-ui/blob/main/docs/guide/requirements.md)
+- [Advanced / manual setup](https://github.com/my-chiefmind/ai-maestro-web-ui/blob/main/docs/guide/advanced-setup.md): manual dashboards, `--home`, `add`, import, safety
+- [HTTP API](https://github.com/my-chiefmind/ai-maestro-web-ui/blob/main/docs/guide/http-api.md): the mutation contract and read-only data
+- [Token usage](https://github.com/my-chiefmind/ai-maestro-web-ui/blob/main/docs/guide/token-usage.md)
+- [Development](https://github.com/my-chiefmind/ai-maestro-web-ui/blob/main/docs/guide/development.md)
 
 ## License
 

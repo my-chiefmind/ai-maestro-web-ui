@@ -1,6 +1,6 @@
 {
   "name": "@mychiefmind/ai-maestro-web-ui",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Local multi-project web UI for @mychiefmind/ai-maestro capsules.",
   "keywords": [
     "ai-maestro",
@@ -19,7 +19,8 @@
   },
   "homepage": "https://github.com/my-chiefmind/ai-maestro-web-ui#readme",
   "bin": {
-    "ai-maestro-web-ui": "bin/ai-maestro-web-ui.mjs"
+    "ai-maestro-web-ui": "bin/ai-maestro-web-ui.mjs",
+    "cockpit": "bin/ai-maestro-web-ui.mjs"
   },
   "files": [
     "server",
@@ -46,7 +47,7 @@
     "access": "public"
   },
   "devDependencies": {
-    "@mychiefmind/ai-maestro": "0.6.12",
+    "@mychiefmind/ai-maestro": "0.6.13",
     "axe-core": "^4.13.0",
     "playwright": "^1.63.0",
     "react": "^19.3.0",

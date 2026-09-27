@@ -22,11 +22,44 @@ delivery order, which one is ready first, and every assumption that needs
 my approval. Do NOT implement anything yet — once I've approved the plan
 I'll ask the orchestrator agent to start.`;
 
+/** The address the page is served on, for the "Open it at" note (T-028). */
+export function cockpitAddress(loc = globalThis.location) {
+  const port = loc?.port || "3021";
+  return `http://cockpit.localhost:${port}`;
+}
+
+/**
+ * The Cockpit Maestro guide (T-028), shared by the dashboard-mode welcome and the Help tab:
+ * what it is, how to add a project, where to open it, and why custom names are opt-in.
+ * @param {{address?: string}} props
+ */
+export function CockpitGuide({ address = cockpitAddress() }) {
+  return <div className="cockpit-guide">
+    <p>Cockpit Maestro is one place to manage many projects that use AI Maestro.</p>
+    <p><strong>Add a project:</strong> click <strong>Add board</strong> and pick the project folder (the one with
+      a <code>maestro</code> folder inside). Or run <code>npx cockpit add &lt;path&gt;</code> in this folder.</p>
+    <p><strong>Open it at</strong> <code>{address}</code>. It works in Chrome, Edge and Firefox on Mac and Windows,
+      with no setup. <strong>Next time</strong>, run <code>npm start</code> in this folder.</p>
+    <details className="cockpit-custom">
+      <summary>Using a custom name like cockpit.loc</summary>
+      <p>Not supported by default: to keep other websites out, Cockpit Maestro only answers
+        to <code>cockpit.localhost</code> and <code>127.0.0.1</code>. Use <code>{address}</code>.</p>
+      <p>If you still want one, add this line to your hosts file, then start with <code>--allow-host cockpit.loc</code>:</p>
+      <pre className="cockpit-hosts">127.0.0.1 cockpit.loc</pre>
+      <ul>
+        <li><strong>Mac:</strong> <code>/etc/hosts</code> (edit with <code>sudo</code>).</li>
+        <li><strong>Windows:</strong> <code>C:\Windows\System32\drivers\etc\hosts</code> (open Notepad as Administrator).</li>
+      </ul>
+    </details>
+  </div>;
+}
+
 /** Dashboard CLI commands, as bin/ai-maestro-web-ui.mjs accepts them. */
 export const COMMANDS = [
-  ["npx ai-maestro-web-ui", "Inside a project: show just that project. In a dashboard folder: the dashboard. Serves 127.0.0.1:3021 (next free port if busy) and opens the browser"],
+  ["npx @mychiefmind/ai-maestro-web-ui", "In an empty folder: set up a cockpit (dashboard) and install it once. Inside a project: show just that project. Opens http://cockpit.localhost:3021 (next free port if busy)"],
+  ["npm start", "In a cockpit folder: start it again, from the local install"],
   ["npx ai-maestro-web-ui --no-open", "Start without opening a browser (CI=1 does the same)"],
-  ["npx ai-maestro-web-ui dashboard init", "Make the current (non-project) folder a dashboard: creates ai-maestro-dashboard.json"],
+  ["npx ai-maestro-web-ui dashboard init", "Make the current (non-project) folder a dashboard without starting it"],
   ["npx ai-maestro-web-ui dashboard --home <dir>", "Start the dashboard kept in <dir> from any folder"],
   ["npx ai-maestro-web-ui add <path>", "Dashboard: register a project folder; --key, --label and --home are optional"],
   ["npx ai-maestro-web-ui list", "Dashboard: print the registered projects"],
@@ -38,7 +71,7 @@ function ModeNote({ cfg }) {
   if (cfg?.mode === "project") {
     return <p className="help-mode" data-mode="project"><strong>Project mode.</strong> You started inside a project, so only
       this project is shown and projects cannot be added or removed here. To follow several projects, make a separate
-      dashboard folder and run <code>npx ai-maestro-web-ui dashboard init</code> there.</p>;
+      folder and run <code>npx @mychiefmind/ai-maestro-web-ui</code> there.</p>;
   }
   if (cfg?.mode === "registry") {
     return <p className="help-mode" data-mode="dashboard"><strong>Dashboard mode.</strong> The project list lives in
@@ -121,18 +154,22 @@ export function HelpPage({ title, cfg }) {
       {cfg?.mode === "project"
         ? <p className="help-lede">This page shows one AI Maestro project: its board, plan, reports, usage and roster.
           The work itself is done by AI Maestro agents inside the project; you plan, review and edit here.</p>
-        : <p className="help-lede">This dashboard shows every registered AI Maestro project side by side: boards, plans,
+        : <p className="help-lede">Cockpit Maestro shows every registered AI Maestro project side by side: boards, plans,
           reports, usage and roster. The work itself is done by AI Maestro agents inside each project; you plan,
           review and edit here.</p>}
       <ModeNote cfg={cfg} />
 
+      {cfg?.mode !== "project" && <section aria-labelledby="help-cockpit">
+        <h3 id="help-cockpit">Your cockpit</h3>
+        <CockpitGuide />
+      </section>}
+
       <section aria-labelledby="help-start">
         <h3 id="help-start">Getting started</h3>
         <ol className="help-steps">
-          <li><strong>Single project:</strong> run <code>npx ai-maestro-web-ui</code> inside the project. <strong>Several
-            projects:</strong> make a dashboard folder, run <code>npx ai-maestro-web-ui dashboard init</code> there, then click
-            <strong> Add board</strong> or run <code>npx ai-maestro-web-ui add &lt;path&gt;</code>. The list lives in the
-            dashboard's <code>ai-maestro-dashboard.json</code>.</li>
+          <li><strong>Several projects:</strong> in an empty folder run <code>npx @mychiefmind/ai-maestro-web-ui</code>; after that,
+            <code>npm start</code>. Click <strong>Add board</strong> to add projects. The list lives in that folder's
+            <code>ai-maestro-dashboard.json</code>. <strong>Single project:</strong> run the same command inside the project.</li>
           <li><strong>Plan it.</strong> In Claude Code at the project root run <code>/project-plan</code>, or paste the prompt below.</li>
           <li><strong>Conduct.</strong> Approve the plan, then run <code>/orchestrator</code>; watch tickets move on the Board tab.</li>
         </ol>
@@ -170,7 +207,7 @@ export function HelpPage({ title, cfg }) {
       <section aria-labelledby="help-guide">
         <h3 id="help-guide">How it works</h3>
         <p>Each project keeps its work in a <code>maestro/</code> folder: the board, plan, specs, reports and usage.
-          The dashboard server runs only on <code>127.0.0.1</code> and reads those folders through AI Maestro's own API.</p>
+          The Cockpit Maestro server runs only on <code>127.0.0.1</code> and reads those folders through AI Maestro's own API.</p>
         <p>Edits go back through the same API, which locks the file and checks it has not changed since you loaded it.
           If an agent changed the board meanwhile, you get a conflict notice instead of overwriting their work.</p>
         {cfg?.mode === "project"

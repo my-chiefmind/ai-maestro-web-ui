@@ -4,14 +4,18 @@ import { spawn } from "node:child_process";
 // The server modules are imported inside the try below: loading them checks the installed
 // @mychiefmind/ai-maestro peer, and a too-old kit must print one clear line, not a stack trace.
 let createServer, DEFAULT_PORT, detectMode, loadConfig, loadDashboardConfig, loadImportedConfig, NO_DASHBOARD_HELP,
-  addRegistryEntry, initDashboard, removeRegistryEntry, restartArgv;
+  addRegistryEntry, initDashboard, removeRegistryEntry, restartArgv,
+  cockpitUrl, ensureStarterPackageJson, hasStartScript, installOnce, nextTimeHint, openCommand, shouldOpenBrowser;
 
 const args = process.argv.slice(2);
 const commands = new Set(["start", "dashboard", "add", "remove", "list"]);
 const command = commands.has(args[0]) ? args.shift() : "start";
 
 function usage() {
-  return `usage:
+  return `Cockpit Maestro — one place to manage many AI Maestro projects.
+(Installed as both \`ai-maestro-web-ui\` and \`cockpit\`; the commands are the same.)
+
+usage:
   ai-maestro-web-ui [start] [--import <registry>] [--allow-host <hostname>] [--no-open]
   ai-maestro-web-ui dashboard init [--home <dir>]
   ai-maestro-web-ui dashboard [--home <dir>] [--allow-host <hostname>] [--no-open]
@@ -20,10 +24,11 @@ function usage() {
   ai-maestro-web-ui list [--home <dir>] [--import <registry>]
 
 Single project: start inside a project (a folder with ./maestro) to see just that project.
-Dashboard: make a folder, run \`dashboard init\` there, then \`add\` projects. The project list
+Dashboard: start in an empty folder (it becomes a dashboard automatically), then \`add\` projects. The project list
 lives in that folder's ai-maestro-dashboard.json; --home <dir> points at a dashboard folder from
 anywhere. add, remove, and list act on the dashboard in the current folder (or --home).
-start opens the browser when run from a terminal; --no-open or CI=1 skips it.
+start opens http://cockpit.localhost:<port> when run from a terminal; --no-open, CI=1 or
+COCKPIT_NO_OPEN=1 skips it.
 `;
 }
 
@@ -41,8 +46,7 @@ function takeSwitch(name) {
 }
 
 function openBrowser(url) {
-  const [cmd, cmdArgs] = process.platform === "darwin" ? ["open", [url]]
-    : process.platform === "win32" ? ["cmd", ["/c", "start", "", url]] : ["xdg-open", [url]];
+  const [cmd, cmdArgs] = openCommand(url);
   try { spawn(cmd, cmdArgs, { stdio: "ignore", detached: true }).on("error", () => {}).unref(); } catch {}
 }
 
@@ -62,6 +66,7 @@ try {
   ({ DEFAULT_PORT, detectMode, loadConfig, loadDashboardConfig, loadImportedConfig, NO_DASHBOARD_HELP } = await import("../server/config.mjs"));
   ({ addRegistryEntry, initDashboard, removeRegistryEntry } = await import("../server/registry.mjs"));
   ({ restartArgv } = await import("../server/selfUpdate.mjs"));
+  ({ cockpitUrl, ensureStarterPackageJson, hasStartScript, installOnce, nextTimeHint, openCommand, shouldOpenBrowser } = await import("../server/cockpit.mjs"));
   if (args.includes("--help") || args.includes("-h")) { process.stdout.write(usage()); process.exit(0); }
   const homeFlag = takeFlag("home");
   if (command === "dashboard" && args[0] === "init") {
@@ -105,6 +110,18 @@ try {
   const config = importPath ? loadImportedConfig(importPath)
     : loadConfig(null, process.cwd(), { dashboard: command === "dashboard", home: homeFlag });
   if (allowHost) config.allowedHosts.push(allowHost);
+  // A brand-new cockpit also gets a package.json (never overwriting one) and one `npm install`, so
+  // `npm start` works next time, locally and offline. Project mode never reaches this.
+  let hasStart = config.mode === "registry" && config.home ? hasStartScript(config.home) : null;
+  if (config.autoCreated) {
+    process.stdout.write(`Cockpit Maestro: set up a new cockpit in ${config.home}\n`);
+    const pkg = ensureStarterPackageJson(config.home); hasStart = pkg.hasStart;
+    if (pkg.created && process.env.COCKPIT_SKIP_INSTALL !== "1") {
+      process.stdout.write("  Installing once (npm install)…\n");
+      const install = installOnce(config.home);
+      if (!install.ok) process.stdout.write(`  npm install failed; this run continues. Fix: ${install.fix}\n`);
+    }
+  }
   // After a successful self-update: free the port, re-exec this same command (now resolving the
   // freshly installed package), and exit. The page polls /api/config until the new process answers.
   const restart = () => {
@@ -122,18 +139,22 @@ try {
   let port = Number.isInteger(restartPort) && restartPort > 0 ? restartPort : DEFAULT_PORT;
   server.on("error", (error) => {
     if (error.code === "EADDRINUSE" && port < Math.max(LAST_PORT, restartPort || 0)) { port += 1; server.listen(port, "127.0.0.1"); return; }
-    process.stderr.write(`ai-maestro-web-ui: cannot bind 127.0.0.1:${port}: ${error.message}\n`);
+    process.stderr.write(`Cockpit Maestro: cannot bind 127.0.0.1:${port}: ${error.message}\n`);
     process.exit(1);
   });
   server.once("listening", () => {
-    const url = `http://127.0.0.1:${port}`;
-    if (port !== DEFAULT_PORT) process.stdout.write(`ai-maestro-web-ui: 127.0.0.1:${DEFAULT_PORT} is busy; using ${port}.\n`);
-    const label = config.mode === "registry" ? `dashboard mode (${config.home ?? config.path})` : `${config.mode} mode`;
-    process.stdout.write(`ai-maestro-web-ui listening on ${url} — ${label}\n`);
-    if (!noOpen && !process.env.CI && process.stdout.isTTY) openBrowser(url);
+    // Bound to 127.0.0.1 only; cockpit.localhost resolves to loopback in Chrome, Edge and Firefox
+    // with no setup, and the host guard accepts it. At most three short lines.
+    const url = cockpitUrl(port);
+    const busy = port !== DEFAULT_PORT ? `; 127.0.0.1:${DEFAULT_PORT} is busy; using ${port}` : "";
+    const what = config.mode === "registry" ? `opened cockpit — dashboard mode (${config.home ?? config.path})` : `opened ${config.mode} mode`;
+    if (!config.autoCreated) process.stdout.write(`Cockpit Maestro: ${what}\n`);
+    process.stdout.write(`  ${url}  (fallback: listening on http://127.0.0.1:${port}${busy})\n`);
+    if (hasStart != null) process.stdout.write(`  ${nextTimeHint(hasStart)}\n`);
+    if (shouldOpenBrowser({ noOpen, isTTY: process.stdout.isTTY, env: process.env })) openBrowser(url);
   });
   server.listen(port, "127.0.0.1");
 } catch (error) {
-  process.stderr.write(`ai-maestro-web-ui: ${error.message}\n`);
+  process.stderr.write(`Cockpit Maestro: ${error.message}\n`);
   process.exit(1);
 }

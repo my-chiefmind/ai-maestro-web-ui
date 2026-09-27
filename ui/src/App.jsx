@@ -312,7 +312,7 @@ export function App() {
         onCheckUpdates={cfg?.readonly ? undefined : () => setUpdateCheck((n) => n + 1)}
         collapsed={railCollapsed} onCollapse={() => setRailCollapsed((c) => !c)} />
       <div className="workspace">
-        <h1 className="sr-only">Maestro boards</h1>
+        <h1 className="sr-only">Cockpit Maestro</h1>
         <header className="topbar">
           <div className="topbar-scope">
             {ready && <>

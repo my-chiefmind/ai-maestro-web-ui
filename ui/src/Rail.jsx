@@ -97,7 +97,7 @@ export function Rail({ rail, error, active, operationsActive, single = false, mo
             {Icon.collapse}
           </button>
         )}
-        <span className="rail-title">Maestro</span>
+        <span className="rail-title">Cockpit Maestro</span>
         {mode && <span className={`mode-tag mode-${mode.kind}`} title={mode.title} aria-label={`${mode.label} mode. ${mode.title}`}>{mode.label}</span>}
         {onTheme && (
           <button type="button" className="icon-btn theme-btn" aria-label={`Theme: ${theme}. Switch theme`} title={`Theme: ${theme}`} onClick={onTheme}>

@@ -19,6 +19,15 @@
 .help-prompt pre { margin: 0; padding: 12px 14px 48px; font-family: var(--mono); font-size: 0.8rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); max-height: 18rem; overflow-y: auto; }
 .help-prompt .help-copy { position: absolute; right: 8px; bottom: 8px; }
 .help-copy { white-space: nowrap; }
+/* Cockpit Maestro guide (T-028): shared by the welcome dialog and the Help tab. */
+.cockpit-guide { display: grid; gap: 10px; }
+.cockpit-guide p, .cockpit-custom p { margin: 0; color: var(--ink-2); line-height: 1.5; overflow-wrap: anywhere; }
+.cockpit-custom { border: 1px solid var(--line); border-radius: var(--r-md); padding: 8px 12px; background: var(--panel-2); }
+.cockpit-custom[open] { display: grid; gap: 8px; }
+.cockpit-custom summary { cursor: pointer; color: var(--ink); font-weight: 600; }
+.cockpit-custom summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.cockpit-custom ul { margin: 0; padding-left: 20px; color: var(--ink-2); display: grid; gap: 4px; }
+.cockpit-hosts { margin: 0; padding: 8px 10px; font-family: var(--mono); font-size: 0.85rem; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-sm); overflow-x: auto; }
 
 .welcome-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--bg) 70%, transparent); backdrop-filter: blur(4px); }
 .welcome { width: min(560px, 100%); max-height: calc(100dvh - 32px); display: flex; flex-direction: column; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-2, var(--shadow-1)); overflow: hidden; }

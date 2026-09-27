@@ -5,3 +5,4 @@ ui/dist/
 *.log
 coverage/
 maestro/board/.usage-hook.log
+maestro/board/.backups/

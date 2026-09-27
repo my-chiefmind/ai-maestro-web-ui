@@ -4,7 +4,7 @@ import { HttpError } from "./http.mjs";
 import { assertKitSupported } from "./kitVersion.mjs";
 import {
   DASHBOARD_FILE, addRegistryEntry, assertCapsulePath, canonicalCapsule, dashboardFilePath, expandPath,
-  isDashboardDir, readImport, readRegistry, removeRegistryEntry, setRegistryEntryStatus, suggestIdentity,
+  initDashboard, isDashboardDir, readImport, readRegistry, removeRegistryEntry, setRegistryEntryStatus, suggestIdentity,
 } from "./registry.mjs";
 
 export const DEFAULT_PORT = 3021;
@@ -37,7 +37,7 @@ export const NO_DASHBOARD_HELP = "run `ai-maestro-web-ui dashboard init` here to
  * Where a start points and which mode it uses:
  * - --home <dir>, a dashboard file in the start folder, or the `dashboard` command → dashboard;
  * - otherwise a ./maestro capsule → project (that one project, no project management);
- * - otherwise neither ("none"): the caller prints guidance and creates nothing.
+ * - otherwise neither ("none"): starting there turns the folder into a new dashboard (loadConfig).
  */
 export function detectMode({ cwd = process.cwd(), home = null, dashboard = false } = {}) {
   if (home != null) return { mode: "dashboard", dir: expandPath(String(home), cwd) };
@@ -81,7 +81,9 @@ export function loadConfig(path = null, cwd = process.cwd(), opts = {}) {
   if (path != null) return configFromRegistry(resolve(cwd, path));
   const { mode, dir } = detectMode({ cwd, home: opts.home, dashboard: opts.dashboard });
   if (mode === "project") return loadProjectConfig(dir);
-  if (mode === "none") throw new Error(`Nothing to show in ${dir}: ${NO_DASHBOARD_HELP}`);
+  // Neither a project nor a dashboard: set up a new, empty dashboard here (T-028). initDashboard
+  // goes through the registry lock / compare-and-swap / atomic write like every other change.
+  if (mode === "none") { initDashboard(dir); return { ...loadDashboardConfig(dir), autoCreated: true }; }
   return loadDashboardConfig(dir);
 }
 
