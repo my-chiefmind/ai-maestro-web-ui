@@ -6,3 +6,5 @@ ui/dist/
 coverage/
 maestro/board/.usage-hook.log
 maestro/board/.backups/
+maestro/board/.usage-pending.jsonl
+maestro/board/.usage-cursor.json
