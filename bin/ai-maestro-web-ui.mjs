@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 
 // The server modules are imported inside the try below: loading them checks the installed
 // @mychiefmind/ai-maestro peer, and a too-old kit must print one clear line, not a stack trace.
@@ -8,6 +9,11 @@ let createServer, DEFAULT_PORT, detectMode, loadConfig, loadDashboardConfig, loa
   hubUrl, ensureStarterPackageJson, hasStartScript, installOnce, nextTimeHint, openCommand, shouldOpenBrowser;
 
 const args = process.argv.slice(2);
+// Answered before the server modules load, so it works even when the installed kit is too old.
+if (args[0] === "--version" || args[0] === "-v") {
+  process.stdout.write(`${JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version}\n`);
+  process.exit(0);
+}
 const commands = new Set(["start", "dashboard", "add", "remove", "list"]);
 const command = commands.has(args[0]) ? args.shift() : "start";
 
@@ -22,6 +28,7 @@ usage:
   ai-maestro-web-ui add <path> [--key <key>] [--label <label>] [--home <dir>]
   ai-maestro-web-ui remove <key> [--home <dir>]
   ai-maestro-web-ui list [--home <dir>] [--import <registry>]
+  ai-maestro-web-ui --version
 
 Single project: start inside a project (a folder with ./maestro) to see just that project.
 Dashboard: start in an empty folder (it becomes a dashboard automatically), then \`add\` projects. The project list

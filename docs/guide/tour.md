@@ -7,9 +7,11 @@
 | **Board** | Tickets by status. Open one to edit it, change its status, archive or drop it. |
 | **All projects** | One operations view across every project: in flight, eligible, blocked, in review. |
 | **Usage** | Tokens used per project, ticket, model and provider. |
+| **Ticket tokens** | Tokens per ticket (input, output, cache, reasoning, total), sortable, each marked measured or inferred. |
 | **Reports** / **Documentation** | Read a project's reports and docs, rendered from Markdown or HTML. |
 | **Project plan** | Goals, scope and requirements, and how much of the plan is filled in. |
 | **Roster** | The agents and skills each project uses. |
+| **Projects** | Every registered project: add, park, unpark or remove one. Only the project list changes; project files are never touched. Not shown in single-project mode. |
 | **Help** | Getting started, the planning prompt and every command, with copy buttons. |
 
 ![All projects: one operations view across every registered project](https://raw.githubusercontent.com/my-chiefmind/ai-maestro-web-ui/main/assets/portfolio.png)
