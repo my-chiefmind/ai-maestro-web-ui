@@ -196,10 +196,6 @@ code { font-size: 12px; background: var(--panel-2); border: 1px solid var(--hair
 }
 .brand img { display: block; width: 26px; height: 26px; object-fit: contain; }
 .rail-title { font: 600 15px var(--display); letter-spacing: -0.01em; flex: 1; }
-.mode-tag {
-  font: 600 10px var(--mono); text-transform: uppercase; letter-spacing: 0.1em;
-  color: var(--rail-muted); border: 1px solid rgba(255,255,255,0.14); padding: 2px 7px; border-radius: 999px;
-}
 .icon-btn {
   display: inline-grid; place-items: center; width: 30px; height: 30px; padding: 0;
   background: transparent; color: var(--rail-muted); border: 1px solid transparent; border-radius: 8px; cursor: pointer;
@@ -250,17 +246,8 @@ code { font-size: 12px; background: var(--panel-2); border: 1px solid var(--hair
 .rail-err { grid-column: 1 / -1; color: var(--err); font: 11px/1.35 var(--mono); overflow-wrap: anywhere; }
 .rail-error { color: var(--err); font: 12px var(--mono); margin: 4px 6px; }
 .rail-loading { color: var(--rail-muted); margin: 4px 6px; }
-.rail-add {
-  margin-top: auto; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
-  background: transparent; color: var(--rail-muted);
-  border: 1px dashed rgba(255,255,255,0.22); border-radius: 10px;
-  padding: 10px; font: 600 12px var(--sans);
-  transition: border-color var(--dur-fast), color var(--dur-fast), background var(--dur-fast);
-}
-.rail-add:hover { border-style: solid; border-color: var(--accent); color: var(--rail-ink); background: var(--rail-hover); }
 .rail-operations { display: flex; align-items: center; gap: 10px; flex: none; padding: 10px 12px 10px 16px; font-weight: 600; }
 .rail-operations svg, .rail-icon { width: 16px; height: 16px; flex: none; color: var(--accent-2); }
-.rail-add svg { width: 14px; height: 14px; flex: none; }
 .rail-foot { display: flex; gap: 4px; justify-content: flex-end; padding-top: 8px; }
 
 /* ---------- taskbar ---------- */
@@ -612,8 +599,8 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
 @media (min-width: 761px) {
   .rail.is-collapsed { padding: 14px 10px; align-items: stretch; }
   .rail.is-collapsed .rail-head { flex-direction: column; padding: 2px 0 12px; }
-  .rail.is-collapsed :is(.rail-title, .mode-tag, .theme-btn, .rail-head > .icon-btn:not(.rail-toggle), .rail-section, .rail-label, .rail-name, .rail-total, .rail-counts, .rail-err, .rail-error, .rail-loading) { display: none; }
-  .rail.is-collapsed :is(.rail-operations, .rail-add) { justify-content: center; padding: 10px 0; }
+  .rail.is-collapsed :is(.rail-title, .theme-btn, .rail-head > .icon-btn:not(.rail-toggle), .rail-section, .rail-label, .rail-name, .rail-total, .rail-counts, .rail-err, .rail-error, .rail-loading) { display: none; }
+  .rail.is-collapsed .rail-operations { justify-content: center; padding: 10px 0; }
   .rail.is-collapsed .rail-item { display: grid; place-items: center; grid-template-columns: 1fr; padding: 9px 0; }
   .rail.is-collapsed .rail-initial { display: block; font: 700 13px var(--mono); text-transform: uppercase; }
   .rail.is-collapsed .rail-item.is-active .rail-initial { color: var(--accent-2); }
@@ -630,14 +617,13 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
   .rail-toggle { display: none; }
   .rail { flex-direction: row; align-items: center; gap: 6px; overflow-x: auto; overflow-y: hidden; padding: 8px 10px; }
   .rail-head { padding: 0 4px 0 0; gap: 6px; }
-  .rail-title, .mode-tag, .rail-section { display: none; }
-  .rail-list { flex-direction: row; gap: 4px; }
+  .rail-title, .rail-section { display: none; }
+  .rail-list { flex-direction: row; gap: 4px; flex: none; }
   .rail-operations { width: auto; white-space: nowrap; padding: 7px 10px; }
   .rail-list > li { flex: none; }
   .rail-item { width: auto; min-width: 96px; max-width: 180px; padding: 6px 10px; gap: 2px 6px; }
   .rail-counts { display: none; }
   .rail-err { max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .rail-add { margin: 0; flex: none; white-space: nowrap; padding: 7px 10px; }
   .rail-foot { padding: 0; margin-left: auto; }
   .desk { padding: 12px; }
   .desk::before, .desk::after { display: none; }
@@ -670,7 +656,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
 }
 
 
-/* ---------- cockpit shell: topbar, tabs, drawer ---------- */
+/* ---------- hub shell: topbar, tabs, drawer ---------- */
 .topbar {
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
   padding: 10px 18px 0;
@@ -681,10 +667,21 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
   flex: none;
 }
 .topbar-scope { display: flex; align-items: center; gap: 10px; padding-bottom: 10px; min-width: 0; }
-.mode-badge { flex: none; margin-left: auto; cursor: help; }
 .topbar-title { font: 600 15px/1.2 var(--display); letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tabs { display: flex; gap: 2px; margin-left: auto; flex: 0 0 auto; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }
+/* Right-hand icon buttons: refresh boards, add board, manage projects, check for updates. */
+.topbar-actions { display: flex; align-items: center; gap: 4px; padding-bottom: 8px; flex: none; }
+.top-btn {
+  display: grid; place-items: center; width: 32px; height: 32px; padding: 0; cursor: pointer;
+  background: transparent; color: var(--ink-3); border: 1px solid transparent; border-radius: 8px;
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+}
+.top-btn svg { width: 16px; height: 16px; }
+.top-btn:hover, .top-btn.is-active { color: var(--ink); background: var(--panel-2); }
+.top-btn.is-add { border: 1px dashed color-mix(in srgb, var(--ink-3) 45%, transparent); }
+.top-btn.is-add:hover { border-style: solid; border-color: var(--accent); }
+.top-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .tab {
   position: relative; flex: none; cursor: pointer;
   background: none; border: 0; border-radius: 8px 8px 0 0;
@@ -775,7 +772,8 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
 @media (max-width: 760px) {
   .topbar { padding: 8px 12px 0; gap: 8px; }
   .topbar-scope { padding-bottom: 6px; }
-  .tabs { margin-left: 0; width: 100%; }
+  .tabs { margin-left: 0; width: 100%; order: 1; }
+  .topbar-actions { margin-left: auto; padding-bottom: 6px; }
   .tab { padding: 8px 10px 10px; font-size: 12px; }
   .documents { grid-template-columns: 1fr; }
   .documents.has-doc .item-list { display: none; }

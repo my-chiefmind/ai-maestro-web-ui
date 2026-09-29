@@ -290,7 +290,7 @@ const ROUTES = [
 
   ["GET", /^\/api\/operations$/, ({ res, config }) => send(res, 200, aggregateOperations(config))],
 
-  // Cockpit parity data (read-only, project-level; no public ai-maestro API in 0.6.6).
+  // Old-dashboard parity data (read-only, project-level; no public ai-maestro API in 0.6.6).
   ["GET", /^\/api\/roster$/, ({ res, config }) => send(res, 200, aggregateProjects(config, ["agents", "skills"], listRoster))],
   ["GET", /^\/api\/reports$/, ({ res, config }) => send(res, 200, aggregateProjects(config, ["reports"], (b) => ({ reports: listReports(b) })))],
   ["GET", /^\/api\/docs$/, ({ res, config }) => send(res, 200, aggregateProjects(config, ["docs"], (b) => ({ docs: listDocs(b) })))],

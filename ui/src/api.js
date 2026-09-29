@@ -150,7 +150,7 @@ const enc = encodeURIComponent;
 export const api = {
   config: () => call("/config"),
   operations: () => call("/operations"),
-  // Cockpit parity data (T-011): per project when `id` is given, aggregate otherwise.
+  // Old-dashboard parity data (T-011): per project when `id` is given, aggregate otherwise.
   usage: (/** @type {string | null} */ id = null) => call(id ? `/boards/${enc(id)}/usage` : "/usage"),
   roster: (/** @type {string | null} */ id = null) => call(id ? `/boards/${enc(id)}/roster` : "/roster"),
   reports: (/** @type {string | null} */ id = null) => call(id ? `/boards/${enc(id)}/reports` : "/reports"),

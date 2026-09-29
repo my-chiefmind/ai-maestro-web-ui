@@ -1,5 +1,5 @@
 /**
- * Plan tab for one project (T-015, cockpit parity): completeness, coverage, initiative progress,
+ * Plan tab for one project (T-015, old-dashboard parity): completeness, coverage, initiative progress,
  * section-by-section editing through targeted plan operations (each sent with the plan version
  * read — compare-and-swap), and trace pickers that set a ticket's `traces_to`.
  */

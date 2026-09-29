@@ -1,5 +1,5 @@
 /**
- * shell.js — pure helpers for the cockpit-shaped shell: the project scope + tab URL state, the
+ * shell.js — pure helpers for the hub-style shell: the project scope + tab URL state, the
  * roster filters, and the All-projects plan overview rows. No DOM, no fetch (node --test).
  */
 

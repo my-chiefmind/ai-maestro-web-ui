@@ -1,5 +1,5 @@
 /**
- * App — the cockpit-shaped shell: a rail of projects (the switcher, with "All projects" first),
+ * App — the hub-style shell: a rail of projects (the switcher, with "All projects" first),
  * nine tabs (Board, Usage, Ticket tokens, Reports, Project plan, Roster, Documentation, Projects, Help), and a drawer of editor
  * windows on the Board tab. Scope and tab live in the URL (`?scope=&tab=`) so a view is
  * shareable and reload-stable; the operations filters keep their own keys.
@@ -27,7 +27,8 @@ import { HelpPage } from "./HelpPage.jsx";
 import { ProjectsPage } from "./ProjectsPage.jsx";
 import { WelcomeModal } from "./WelcomeModal.jsx";
 import { UpdateBanner } from "./UpdateBanner.jsx";
-import { escapeBelongsToControl, modeBadge } from "./logic.js";
+import { TopbarActions } from "./TopbarActions.jsx";
+import { escapeBelongsToControl, brandName } from "./logic.js";
 import { planRefresh, startBoardPoller } from "./autoRefresh.js";
 import { applyTheme, nextTheme, readTheme } from "./theme.js";
 import { ALL, TABS, effectiveScope, shellSearch, shellState, visibleTabs } from "./shell.js";
@@ -47,14 +48,16 @@ export function App() {
   const [cfg, setCfg] = useState(/** @type {any} */ (null));
   // Project mode: one project, no project management (no Add board, Manage projects, or Projects tab).
   const projectMode = cfg?.mode === "project";
-  const badge = modeBadge(cfg);
+  const brand = brandName(cfg);
   const [boards, setBoards] = useState(/** @type {Record<string, {data?: any, error?: string, loading?: boolean}>} */ ({}));
   const [wins, setWins] = useState(/** @type {Win[]} */ ([]));
   const [active, setActive] = useState(/** @type {string | null} */ (null));
   const [shell, setShell] = useState(initialShell);
   const [theme, setTheme] = useState(readTheme);
   useEffect(() => { applyTheme(theme); }, [theme]);
+  useEffect(() => { if (brand) document.title = brand; }, [brand]);
   const [updateCheck, setUpdateCheck] = useState(0);
+  const [railTick, setRailTick] = useState(0);
   const [railCollapsed, setRailCollapsed] = useState(() => {
     try { return globalThis.localStorage?.getItem("mwu-rail") === "collapsed"; } catch { return false; }
   });
@@ -189,10 +192,15 @@ export function App() {
     });
   }, [wins, clean]);
 
+  // Add board is a task of its own: going to another tab, project or page closes it instead of leaving it on top.
+  const leaveAdd = () => { const add = wins.find((w) => w.type === "add"); if (add) close(add.key); };
+
   // Editor windows belong to the project they were opened for; only the current scope's show.
   const panels = useMemo(() => wins.filter((w) => (w.type === "add" ? true : w.boardId === scopeId)), [wins, scopeId]);
   const current = panels.find((w) => w.key === active) ?? panels[panels.length - 1] ?? null;
   const drawerOpen = shell.tab === "board" && current !== null;
+  // Add board is a task of its own: it takes the whole desk instead of sharing it with the board.
+  const fullWindow = drawerOpen && current?.type === "add";
   useEffect(() => {
     if (!drawerOpen || !current || !drawerRef.current) return;
     if (drawerRef.current.contains(document.activeElement)) return;
@@ -305,28 +313,25 @@ export function App() {
   return (
     <div className={`shell ${railCollapsed ? "rail-collapsed" : ""}`}>
       <Rail rail={rail} error={railError} active={scopeId} operationsActive={!scopeId} single={!ready || projectMode}
-        onOperations={() => setScope(ALL)} onOpen={(id) => setScope(id)}
-        onAdd={!ready || projectMode ? undefined : () => open({ type: "add" })} onRefresh={loadRail} mode={badge}
-        projectsActive={shell.tab === "projects"} onProjects={!ready || projectMode ? undefined : () => setShell({ scope: ALL, tab: "projects" })}
-        theme={theme} onTheme={() => setTheme((t) => nextTheme(t))}
-        onCheckUpdates={cfg?.readonly ? undefined : () => setUpdateCheck((n) => n + 1)}
+        onOperations={() => { leaveAdd(); setScope(ALL); }} onOpen={(id) => { leaveAdd(); setScope(id); }}
+        refreshTick={railTick} brand={brand} theme={theme} onTheme={() => setTheme((t) => nextTheme(t))}
         collapsed={railCollapsed} onCollapse={() => setRailCollapsed((c) => !c)} />
       <div className="workspace">
-        <h1 className="sr-only">Cockpit Maestro</h1>
+        <h1 className="sr-only">{brand ?? "Maestro"}</h1>
         <header className="topbar">
           <div className="topbar-scope">
-            {ready && <>
-              <span className="kind">{scopeId || projectMode ? "project" : "portfolio"}</span>
-              <span className="topbar-title">{scopeName}</span>
-            </>}
-            {badge && <span className={`kind mode-badge mode-${badge.kind}`} title={badge.title} data-mode={badge.kind}>{badge.label}</span>}
+            {ready && <span className="topbar-title">{scopeName}</span>}
           </div>
           <nav className="tabs" aria-label="Areas">
             {visibleTabs(cfg?.mode).map(([key, label]) => (
               <button key={key} type="button" className={`tab ${shell.tab === key ? "is-active" : ""}`}
-                aria-current={shell.tab === key ? "page" : undefined} onClick={() => setTab(key)}>{label}</button>
+                aria-current={shell.tab === key ? "page" : undefined} onClick={() => { leaveAdd(); setTab(key); }}>{label}</button>
             ))}
           </nav>
+          <TopbarActions onRefresh={() => { setRailTick((n) => n + 1); loadRail(); }}
+            onAdd={!ready || projectMode ? undefined : () => open({ type: "add" })}
+            projectsActive={shell.tab === "projects"} onProjects={!ready || projectMode ? undefined : () => { leaveAdd(); setShell({ scope: ALL, tab: "projects" }); }}
+            onCheckUpdates={cfg?.readonly ? undefined : () => setUpdateCheck((n) => n + 1)} />
         </header>
         <UpdateBanner checkRequest={updateCheck} />
         {shell.tab === "board" && panels.length > 0 && (
@@ -342,8 +347,8 @@ export function App() {
             ))}
           </nav>
         )}
-        <main className={`desk ${drawerOpen ? "has-companion" : ""}`} tabIndex={-1}>
-          {renderTab()}
+        <main className={`desk ${fullWindow ? "is-full" : drawerOpen ? "has-companion" : ""}`} tabIndex={-1}>
+          {!fullWindow && renderTab()}
           {drawerOpen && current && (
             <div className="drawer" ref={drawerRef} onInput={() => { if (current.boardId) dirty.current.add(current.boardId); }}
               onChange={() => { if (current.boardId) dirty.current.add(current.boardId); }}>

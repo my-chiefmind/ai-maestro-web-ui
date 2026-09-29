@@ -1,7 +1,7 @@
 /**
  * logic.js — pure helpers (no DOM, no fetch) so they run under `node --test`.
  */
-// The plan maths is ai-maestro's own (dependency-free) plan-core, the same module its cockpit
+// The plan maths is ai-maestro's own (dependency-free) plan-core, the same module its old dashboard
 // imports — so completeness, coverage and initiative progress cannot drift from the CLI's numbers.
 // Deep import because plan-core is not in the package's `exports` (follow-up: ai-maestro to export it); vite bundles it into ui/dist.
 import {
@@ -393,18 +393,15 @@ export function addBoardMode(cfg) {
 }
 
 /**
- * The header's mode badge. Project mode is one project with no project management; the dashboard
- * keeps its project list in its own folder (shown on hover); import is a read-only list.
- * @param {{mode?: string, home?: string | null, path?: string | null} | null} cfg
- * @returns {{kind: "project" | "dashboard" | "import", label: string, title: string} | null}
+ * The product name for the current mode: one project is "Maestro"; the standalone multi-project
+ * view (a dashboard folder or an imported list) is "Maestro Hub". Null until the config loads, so
+ * neither name flashes before the mode is known.
+ * @param {{mode?: string} | null} cfg
+ * @returns {"Maestro" | "Maestro Hub" | null}
  */
-export function modeBadge(cfg) {
+export function brandName(cfg) {
   if (!cfg?.mode) return null;
-  if (cfg.mode === "project") {
-    return { kind: "project", label: "Project", title: `Project mode: only this project (${cfg.path ?? ""}). Start the dashboard to manage projects.` };
-  }
-  if (cfg.mode === "import") return { kind: "import", label: "Import", title: "Imported project list (read-only)" };
-  return { kind: "dashboard", label: "Dashboard", title: `Dashboard folder: ${cfg.home ?? cfg.path ?? ""}` };
+  return cfg.mode === "project" ? "Maestro" : "Maestro Hub";
 }
 
 /** A projects.json registry entry suggestion for a new board. @param {{id: string, name: string, path: string}} e */
@@ -505,7 +502,7 @@ export function isGated(t) {
 
 /**
  * Ready to pick up: todo and eligible. Uses the server's eligibility verdict when present,
- * otherwise mirrors the cockpit rule (todo, not gated, every dependency done).
+ * otherwise mirrors the old dashboard rule (todo, not gated, every dependency done).
  * @param {any} t @param {any[]} tickets
  */
 export function isReady(t, tickets = []) {

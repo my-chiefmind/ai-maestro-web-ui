@@ -10,15 +10,15 @@ way. These are the manual steps it replaces, and the options behind them.
 ```sh
 mkdir ~/my-dashboard && cd ~/my-dashboard
 npm init -y && npm i @mychiefmind/ai-maestro @mychiefmind/ai-maestro-web-ui
-npx cockpit dashboard init        # creates ./ai-maestro-dashboard.json
-npx cockpit add ~/source/my-app   # or click Add board in the UI
-npx cockpit
+npx maestro-hub dashboard init        # creates ./ai-maestro-dashboard.json
+npx maestro-hub add ~/source/my-app   # or click Add board in the UI
+npx maestro-hub
 ```
 
 The header says **Dashboard** (hover it for the folder). The dashboard file only lists project
 paths; each project's tickets, specs and usage stay in that project's own `maestro` folder. A
 dashboard must not live inside a project, so `dashboard init` refuses a folder with `./maestro`.
-From anywhere else, `npx cockpit dashboard --home ~/my-dashboard` starts it.
+From anywhere else, `npx maestro-hub dashboard --home ~/my-dashboard` starts it.
 
 ## Single project
 
@@ -39,10 +39,10 @@ Run these in the dashboard folder (or pass `--home <dir>`). The path may name ei
 root or its `maestro` capsule. In a project folder these commands refuse:
 
 ```sh
-npx cockpit add ~/source/my-app
-npx cockpit add "~/source/a project" --key a-project --label "A Project"
-npx cockpit list
-npx cockpit remove a-project
+npx maestro-hub add ~/source/my-app
+npx maestro-hub add "~/source/a project" --key a-project --label "A Project"
+npx maestro-hub list
+npx maestro-hub remove a-project
 ```
 
 The dashboard file is `<dashboard folder>/ai-maestro-dashboard.json` and has one deliberately small format:
@@ -77,8 +77,8 @@ To reuse an existing ai-maestro portfolio registry (`projects.json`) without cop
 explicitly:
 
 ```sh
-npx cockpit --import ./projects.json
-npx cockpit list --import ./projects.json
+npx maestro-hub --import ./projects.json
+npx maestro-hub list --import ./projects.json
 ```
 
 Imported registries are read-only. Both `active` and `parked` status are retained; a parked entry
@@ -87,7 +87,7 @@ without a capsule remains visible as unavailable. Nested ai-maestro registries a
 ## Safety
 
 The server binds only to `127.0.0.1`. Requests are checked against the loopback host allowlist
-(including `cockpit.localhost`); add `--allow-host <name>` when a trusted local reverse proxy uses
+(including `maestro.localhost`); add `--allow-host <name>` when a trusted local reverse proxy uses
 another hostname. Every API request selects a project by registry key only—request input is never
 interpreted as a filesystem path. Before every project use, the server rechecks that its canonical
 directory has not been replaced by a symlink.

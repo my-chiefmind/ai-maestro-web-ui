@@ -1,8 +1,8 @@
-<p align="center"><img src="https://raw.githubusercontent.com/my-chiefmind/ai-maestro-web-ui/main/ui/public/logo.png" alt="Cockpit Maestro" width="160" /></p>
+<p align="center"><img src="https://raw.githubusercontent.com/my-chiefmind/ai-maestro-web-ui/main/ui/public/logo.png" alt="Maestro" width="160" /></p>
 
-# Cockpit Maestro
+# Maestro
 
-**Cockpit Maestro** (`@mychiefmind/ai-maestro-web-ui`) is one place, on your own machine, to see
+**Maestro** (`@mychiefmind/ai-maestro-web-ui`) is one place, on your own machine, to see
 and edit the boards, plans, reports and token usage of all your
 [AI Maestro](https://www.npmjs.com/package/@mychiefmind/ai-maestro) projects.
 
@@ -16,8 +16,8 @@ In any empty folder:
 npx @mychiefmind/ai-maestro-web-ui
 ```
 
-It sets the folder up as your cockpit, installs it there once, and opens
-`http://cockpit.localhost:3021` in your browser.
+It sets the folder up as your Maestro Hub, installs it there once, and opens
+`http://maestro.localhost:3021` in your browser.
 
 ## Run again
 

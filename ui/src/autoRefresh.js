@@ -1,5 +1,5 @@
 /**
- * autoRefresh.js — cockpit parity: notice when agents change a board on disk.
+ * autoRefresh.js — old-dashboard parity: notice when agents change a board on disk.
  * Polls the (already allowlisted) board list, which carries each board's `version`, so one
  * cheap request covers the active project, "All projects", and the rail counts at once.
  * Framework-free and clock-injectable so it is unit-testable with fake timers.

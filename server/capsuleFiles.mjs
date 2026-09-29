@@ -1,5 +1,5 @@
 /**
- * capsuleFiles.mjs — read-only, project-level listings the cockpit shows but ai-maestro 0.6.6
+ * capsuleFiles.mjs — read-only, project-level listings Maestro shows but ai-maestro 0.6.6
  * exposes no public API for: the roster (agents and skills), generated reports, and docs.
  *
  * Every directory is derived from the registered capsule (never from a request), every entry

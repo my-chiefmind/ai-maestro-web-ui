@@ -21,7 +21,7 @@ lock `423` with safe holder details.
 
 ## Read-only project data
 
-Three cockpit areas have no public ai-maestro API yet, so the server lists them itself, read-only,
+Three Maestro areas have no public ai-maestro API yet, so the server lists them itself, read-only,
 under the registered project: the roster (`/api/boards/<key>/roster`) scans the project's
 `.claude/agents/*.md`, `.claude/skills/*/SKILL.md`, `.codex/agents/*.toml` and
 `.agents/skills/*/SKILL.md`, merging same-named entries and tagging each with its targets; reports
