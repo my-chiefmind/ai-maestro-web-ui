@@ -5,24 +5,25 @@
  * content lives on the Help tab. Storage failures (private mode) never break rendering.
  */
 import { useEffect, useId, useRef, useState } from "react";
-import { ONBOARDING_PROMPT, HubGuide, CopyButton } from "./HelpPage.jsx";
+import { ONBOARDING_PROMPT, HubGuide, CopyButton, ProjectNextSteps } from "./HelpPage.jsx";
 import "./help.css";
 
 export const WELCOME_KEY = "mwu-welcome-v1";
 
 /** Whether the welcome (storage defaults to localStorage, resolved inside the try) was dismissed for good. Unreadable storage counts as "not seen". */
-export function welcomeSeen(storage) {
-  try { return (storage ?? globalThis.localStorage)?.getItem(WELCOME_KEY) === "1"; } catch { return false; }
+export function welcomeSeen(storage, key = WELCOME_KEY) {
+  try { return (storage ?? globalThis.localStorage)?.getItem(key) === "1"; } catch { return false; }
 }
 
 /** Persist the dismissal; returns false when storage is unavailable. */
-export function markWelcomeSeen(storage) {
-  try { const store = storage ?? globalThis.localStorage; if (!store) return false; store.setItem(WELCOME_KEY, "1"); return true; } catch { return false; }
+export function markWelcomeSeen(storage, key = WELCOME_KEY) {
+  try { const store = storage ?? globalThis.localStorage; if (!store) return false; store.setItem(key, "1"); return true; } catch { return false; }
 }
 
 /** @param {{onClose?: () => void}} props */
-export function WelcomeModal({ onClose, projectMode = false }) {
-  const [open, setOpen] = useState(() => !welcomeSeen());
+export function WelcomeModal({ onClose, projectMode = false, projectPath = "" }) {
+  const welcomeKey = projectMode ? `mwu-project-start-v1:${projectPath}` : WELCOME_KEY;
+  const [open, setOpen] = useState(() => !welcomeSeen(undefined, welcomeKey));
   const [dontShow, setDontShow] = useState(true);
   const titleId = useId();
   const descId = useId();
@@ -30,7 +31,7 @@ export function WelcomeModal({ onClose, projectMode = false }) {
   const opener = useRef(/** @type {Element | null} */ (null));
 
   const close = () => {
-    if (dontShow) markWelcomeSeen();
+    if (dontShow) markWelcomeSeen(undefined, welcomeKey);
     setOpen(false);
     onClose?.();
     const target = opener.current;
@@ -73,12 +74,14 @@ export function WelcomeModal({ onClose, projectMode = false }) {
         <div className="welcome-body">
           {projectMode
             ? <>
-              <p id={descId}>Paste this prompt into Claude Code (or any agentic tool) at this project's root. The agent writes the plan
-                and board; you review them here.</p>
+              <div id={descId}><ProjectNextSteps /></div>
+              <details className="hub-custom">
+                <summary>Or copy a planning prompt</summary>
               <div className="help-prompt">
                 <pre>{ONBOARDING_PROMPT}</pre>
                 <CopyButton text={ONBOARDING_PROMPT} label="Copy prompt" />
               </div>
+              </details>
             </>
             : <>
               <div id={descId}><HubGuide /></div>

@@ -363,7 +363,7 @@ export function App() {
           )}
         </main>
       </div>
-      <WelcomeModal projectMode={projectMode} />
+      {cfg && <WelcomeModal key={cfg.path || cfg.mode} projectMode={projectMode} projectPath={cfg.path || ""} />}
     </div>
   );
 }

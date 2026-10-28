@@ -49,3 +49,7 @@
   .help-statuses div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 }
 @media (prefers-reduced-motion: reduce) { .welcome-backdrop { backdrop-filter: none; } }
+
+.project-next-steps { display: grid; gap: 12px; }
+.project-next-steps li { color: var(--ink-2); line-height: 1.6; }
+.project-next-steps li p { margin-top: 6px; }

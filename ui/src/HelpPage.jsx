@@ -22,6 +22,23 @@ delivery order, which one is ready first, and every assumption that needs
 my approval. Do NOT implement anything yet — once I've approved the plan
 I'll ask the orchestrator agent to start.`;
 
+/** Shared next steps for a freshly configured project. */
+export function ProjectNextSteps() {
+  return <div className="project-next-steps">
+    <p><strong>In Claude Code or Codex:</strong></p>
+    <ol className="help-steps">
+      <li><strong>Open this repo.</strong> In a terminal at your project folder, run <code>claude</code> or <code>codex</code>.</li>
+      <li><strong>Plan the work.</strong> Run <code>/project-plan</code> in Claude Code or <code>$project-plan</code> in Codex.
+        <p>This writes the project plan — goal, scope, deliverables, use cases, requirements — then turns it into epics
+          and dependency-ordered tickets, stopping for your review at each step.</p>
+        <p>Fill in any section later with <code>/plan-update</code> (Claude Code), <code>$plan-update</code> (Codex),
+          or the board's <strong>Project plan</strong> tab.</p></li>
+      <li><strong>Approve it, then build.</strong> Run <code>/orchestrator</code> in Claude Code or <code>$orchestrator</code> in Codex — one ticket per run.
+        <p>It only runs tickets the plan covers — that's the point of the plan.</p></li>
+    </ol>
+  </div>;
+}
+
 /** The address the page is served on, for the "Open it at" note (T-028). */
 export function hubAddress(loc = globalThis.location) {
   const port = loc?.port || "3021";
@@ -166,13 +183,13 @@ export function HelpPage({ title, cfg }) {
 
       <section aria-labelledby="help-start">
         <h3 id="help-start">Getting started</h3>
-        <ol className="help-steps">
+        {cfg?.mode === "project" ? <ProjectNextSteps /> : <ol className="help-steps">
           <li><strong>Several projects:</strong> in an empty folder run <code>npx @mychiefmind/ai-maestro-web-ui</code>; after that,
             <code>npm start</code>. Click <strong>Add board</strong> to add projects. The list lives in that folder's
             <code>ai-maestro-dashboard.json</code>. <strong>Single project:</strong> run the same command inside the project.</li>
           <li><strong>Plan it.</strong> In Claude Code at the project root run <code>/project-plan</code>, or paste the prompt below.</li>
           <li><strong>Conduct.</strong> Approve the plan, then run <code>/orchestrator</code>; watch tickets move on the Board tab.</li>
-        </ol>
+        </ol>}
         <h4>Planning prompt</h4>
         <div className="help-prompt">
           <pre>{ONBOARDING_PROMPT}</pre>
